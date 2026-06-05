@@ -4,9 +4,9 @@
 
 **Goal:** Поднять работающее Django-приложение, где куратор заводит акт через admin, а читатель открывает его страницу с реквизитами, оглавлением, якорями статей и панелями подтверждённых связей.
 
-**Architecture:** Django-монолит + PostgreSQL, всё в Docker compose. Модель данных «Document → Redaction → Article» + «Link». Чтение — серверные шаблоны (Pico.css + HTMX подключены на будущее). Доступ только для залогиненных; роли readers/curators.
+**Architecture:** Django-монолит. Модель данных «Document → Redaction → Article» + «Link». Чтение — серверные шаблоны (Pico.css + HTMX подключены на будущее). Доступ только для залогиненных; роли readers/curators.
 
-**Tech Stack:** Python 3.12, Django 5.2 LTS, PostgreSQL 16, psycopg 3, django-environ, pytest + pytest-django, ruff, Docker Compose, Pico.css/HTMX (CDN).
+**Tech Stack:** Python 3.13 (через лаунчер `py` + venv `.venv`), Django 5.2 LTS, **SQLite в Плане 1** (PostgreSQL подключим в Плане 2 для полнотекстового поиска), django-environ, pytest + pytest-django, ruff, Pico.css/HTMX (CDN).
 
 **Спецификация:** [docs/superpowers/specs/2026-06-05-lawiot-design.md](../specs/2026-06-05-lawiot-design.md)
 
@@ -14,20 +14,28 @@
 
 ---
 
+## Окружение исполнения (выяснено на машине)
+
+- **Python 3.13.7** установлен (лаунчер `py`). ВАЖНО: команда `python` ведёт на пустую Store-заглушку и зависает — **используем только `py` и `.venv\Scripts\python.exe`**, не `python`.
+- **Docker установлен**, но в Плане 1 не используется (запускаемся локально). Postgres+Docker появятся в Плане 2.
+- БД Плана 1 — **SQLite** (файл `db.sqlite3` в корне, в `.gitignore`). Настройки читают `DATABASE_URL`; если он не задан — SQLite. Переключение на Postgres позже = одна переменная окружения.
+- Все команды запускаются из корня проекта в PowerShell.
+
+---
+
 ## Структура файлов (что создаём в Плане 1)
 
 ```
 lawiot/
-├── pyproject.toml                 # конфиг pytest + ruff (не пакет)
-├── Dockerfile                     # образ web
-├── docker-compose.yml             # сервисы db + web
+├── pyproject.toml                 # конфиг pytest + ruff
+├── requirements.txt               # зависимости Плана 1
 ├── .env.example                   # пример переменных окружения
 ├── .gitignore
 ├── manage.py
-├── conftest.py                    # общие pytest-фикстуры
+├── conftest.py                    # пустой — маркер корня для pytest
 ├── config/
 │   ├── __init__.py
-│   ├── settings.py                # настройки (env-based)
+│   ├── settings.py                # настройки (env-based, по умолчанию SQLite)
 │   ├── urls.py                    # маршруты проекта
 │   └── wsgi.py
 ├── accounts/                      # роли и доступ (миграция-only app)
@@ -42,19 +50,25 @@ lawiot/
 │   ├── models.py                  # Document, Redaction, Article, Link
 │   ├── admin.py                   # пульт куратора
 │   ├── views.py                   # список + детальная
+│   ├── management/commands/seed_demo.py
 │   ├── migrations/__init__.py
 │   └── tests/
 │       ├── __init__.py
 │       ├── factories.py           # хелперы создания объектов в тестах
 │       ├── test_models.py
-│       └── test_views.py
+│       ├── test_admin.py
+│       ├── test_views.py
+│       └── test_seed.py
 ├── templates/
 │   ├── base.html
 │   ├── registration/login.html
 │   └── documents/
 │       ├── document_list.html
 │       └── document_detail.html
-└── static/.gitkeep
+├── static/.gitkeep
+├── tests/test_smoke.py            # smoke-тест каркаса
+├── .venv/                         # виртуальное окружение (в .gitignore)
+└── db.sqlite3                     # БД разработки (в .gitignore)
 ```
 
 **Ответственность модулей:**
@@ -65,17 +79,16 @@ lawiot/
 - `documents/views.py` — чтение для читателя.
 - `templates/` — представление.
 
-Сущности `RawSource` и `IngestionJob` появятся в Плане 3 (ингест) — здесь они не нужны.
+Сущности `RawSource` и `IngestionJob` появятся в Плане 3 (ингест) — здесь не нужны.
 
 ---
 
-## Task 1: Каркас проекта (Django + Postgres + Docker)
+## Task 1: Каркас проекта (Django + SQLite, локальный venv)
 
 **Files:**
-- Create: `pyproject.toml`, `Dockerfile`, `docker-compose.yml`, `.env.example`, `.gitignore`, `manage.py`, `conftest.py`
+- Create: `pyproject.toml`, `requirements.txt`, `.env.example`, `.gitignore`, `manage.py`, `conftest.py`
 - Create: `config/__init__.py`, `config/settings.py`, `config/urls.py`, `config/wsgi.py`
-- Create: `static/.gitkeep`
-- Test: `tests/test_smoke.py`
+- Create: `static/.gitkeep`, `tests/test_smoke.py`
 
 - [ ] **Step 1: Создать файлы каркаса**
 
@@ -88,61 +101,25 @@ addopts = "-ra"
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 ```
 
-`Dockerfile`:
-```dockerfile
-FROM python:3.12-slim
-ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-WORKDIR /app
-RUN pip install --upgrade pip && pip install \
-    "Django>=5.2,<6.0" "psycopg[binary]>=3.2" "django-environ>=0.11" \
-    "pytest>=8.0" "pytest-django>=4.8" "ruff>=0.6"
-COPY . .
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+`requirements.txt`:
 ```
-
-`docker-compose.yml`:
-```yaml
-services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: lawiot
-      POSTGRES_USER: lawiot
-      POSTGRES_PASSWORD: lawiot
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lawiot"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-  web:
-    build: .
-    command: python manage.py runserver 0.0.0.0:8000
-    environment:
-      DATABASE_URL: postgres://lawiot:lawiot@db:5432/lawiot
-      SECRET_KEY: dev-insecure-key-change-me
-      DEBUG: "True"
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-volumes:
-  pgdata:
+Django>=5.2,<6.0
+django-environ>=0.11
+pytest>=8.0
+pytest-django>=4.8
+ruff>=0.6
 ```
 
 `.env.example`:
 ```
 SECRET_KEY=dev-insecure-key-change-me
 DEBUG=True
-DATABASE_URL=postgres://lawiot:lawiot@db:5432/lawiot
 ALLOWED_HOSTS=localhost,127.0.0.1
+# DATABASE_URL в Плане 1 не задаём — используется SQLite (db.sqlite3).
+# В Плане 2 для Postgres: DATABASE_URL=postgres://lawiot:lawiot@localhost:5432/lawiot
 ```
 
 `.gitignore`:
@@ -150,6 +127,8 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 __pycache__/
 *.pyc
 .env
+.venv/
+db.sqlite3
 .pytest_cache/
 .ruff_cache/
 staticfiles/
@@ -171,6 +150,8 @@ def main():
 if __name__ == "__main__":
     main()
 ```
+
+`conftest.py`: empty file (маркер корня для pytest).
 
 `config/__init__.py`: empty file.
 
@@ -196,8 +177,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "accounts",
-    "documents",
 ]
 
 MIDDLEWARE = [
@@ -229,12 +208,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": env.db(
-        "DATABASE_URL",
-        default="postgres://lawiot:lawiot@db:5432/lawiot",
-    ),
-}
+if env("DATABASE_URL", default=""):
+    DATABASES = {"default": env.db("DATABASE_URL")}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -255,18 +237,14 @@ LOGIN_REDIRECT_URL = "document_list"
 LOGOUT_REDIRECT_URL = "login"
 ```
 
-`config/urls.py`:
+`config/urls.py` (в Плане 1 — только admin и auth; маршруты документов добавим в Task 8):
 ```python
 from django.contrib import admin
 from django.urls import include, path
 
-from documents import views
-
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("accounts/", include("django.contrib.auth.urls")),
-    path("", views.document_list, name="document_list"),
-    path("doc/<slug:slug>/", views.document_detail, name="document_detail"),
 ]
 ```
 
@@ -288,23 +266,36 @@ def test_smoke():
     assert True
 ```
 
-> Примечание: `config/urls.py` ссылается на `documents.views`, которых ещё нет. Поэтому до Task 8 запускаем только `migrate`/`check` без импорта views — а `check` будет проходить лишь после Task 8. Для Task 1 проверяем БД-подключение и pytest отдельно (шаги ниже). Если хочется зелёный `check` уже сейчас — временно закомментируй две строки `path(...)` с `views` и раскомментируй в Task 8 (это указано там же).
+> Очерёдность подключения: `accounts` и `documents` добавляются в `INSTALLED_APPS` в Tasks 2 и 3 (когда создаются), а маршруты документов — в Task 8 (когда появится `documents/views.py`). Поэтому в Task 1 их здесь нет — это намеренно, иначе Django падал бы на импорте несуществующих модулей.
 
-- [ ] **Step 2: Поднять БД и проверить подключение**
+- [ ] **Step 2: Создать venv и установить зависимости**
 
-Run: `docker compose run --rm web python -c "import django; print(django.get_version())"`
-Expected: печатает версию `5.2.x` (образ собрался, Django установлен).
+Run:
+```powershell
+py -3 -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+Expected: пакеты установлены без ошибок.
 
-- [ ] **Step 3: Прогнать pytest (харнесс тестов работает)**
+- [ ] **Step 3: Проверить, что Django поднимается и миграции применяются**
 
-Run: `docker compose run --rm web pytest tests/test_smoke.py -v`
+Run: `.venv\Scripts\python.exe -c "import django; print(django.get_version())"`
+Expected: печатает `5.2.x`.
+
+Run: `.venv\Scripts\python.exe manage.py migrate`
+Expected: применяются миграции встроенных приложений, создаётся `db.sqlite3`. (Команда `migrate` не импортирует `config/urls.py`, так что отсутствие `documents.views` до Task 8 не мешает.)
+
+- [ ] **Step 4: Прогнать pytest (харнесс тестов работает)**
+
+Run: `.venv\Scripts\python.exe -m pytest tests/test_smoke.py -v`
 Expected: `1 passed`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add pyproject.toml Dockerfile docker-compose.yml .env.example .gitignore manage.py conftest.py config static tests
-git commit -m "chore: project skeleton (Django + Postgres + Docker)"
+git add pyproject.toml requirements.txt .env.example .gitignore manage.py conftest.py config static tests
+git commit -m "chore: project skeleton (Django + SQLite, local venv)"
 ```
 
 ---
@@ -312,11 +303,13 @@ git commit -m "chore: project skeleton (Django + Postgres + Docker)"
 ## Task 2: Роли доступа (accounts)
 
 **Files:**
-- Create: `accounts/__init__.py`, `accounts/apps.py`, `accounts/migrations/__init__.py`, `accounts/migrations/0001_groups.py`
-- Test: `accounts/tests/__init__.py`, `accounts/tests/test_groups.py`
+- Create: `accounts/__init__.py`, `accounts/tests/__init__.py`, `accounts/tests/test_groups.py`
+- Create: `accounts/apps.py`, `accounts/migrations/__init__.py`, `accounts/migrations/0001_groups.py`
+- Modify: `config/settings.py` (добавить `accounts` в `INSTALLED_APPS`)
 
 - [ ] **Step 1: Написать падающий тест**
 
+`accounts/__init__.py`: empty file.
 `accounts/tests/__init__.py`: empty file.
 
 `accounts/tests/test_groups.py`:
@@ -333,12 +326,23 @@ def test_role_groups_exist():
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest accounts/tests/test_groups.py -v`
-Expected: FAIL — групп нет (миграция ещё не создана) либо приложение `accounts` без миграций.
+Run: `.venv\Scripts\python.exe -m pytest accounts/tests/test_groups.py -v`
+Expected: FAIL — групп нет (миграция ещё не создана).
 
-- [ ] **Step 3: Создать приложение и миграцию групп**
+- [ ] **Step 3: Добавить `accounts` в INSTALLED_APPS, создать приложение и миграцию групп**
 
-`accounts/__init__.py`: empty file.
+Modify `config/settings.py` — добавить `"accounts"` в `INSTALLED_APPS` сразу после `"django.contrib.staticfiles"`:
+```python
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "accounts",
+]
+```
 
 `accounts/apps.py`:
 ```python
@@ -377,13 +381,13 @@ class Migration(migrations.Migration):
 
 - [ ] **Step 4: Запустить — убедиться, что проходит**
 
-Run: `docker compose run --rm web pytest accounts/tests/test_groups.py -v`
+Run: `.venv\Scripts\python.exe -m pytest accounts/tests/test_groups.py -v`
 Expected: `1 passed`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add accounts
+git add accounts config/settings.py
 git commit -m "feat(accounts): readers/curators role groups via migration"
 ```
 
@@ -392,12 +396,13 @@ git commit -m "feat(accounts): readers/curators role groups via migration"
 ## Task 3: Модель Document
 
 **Files:**
-- Create: `documents/__init__.py`, `documents/apps.py`, `documents/models.py`, `documents/migrations/__init__.py`
-- Create: `documents/tests/__init__.py`, `documents/tests/factories.py`
-- Test: `documents/tests/test_models.py`
+- Create: `documents/__init__.py`, `documents/tests/__init__.py`, `documents/tests/factories.py`, `documents/tests/test_models.py`
+- Create: `documents/apps.py`, `documents/models.py`, `documents/migrations/__init__.py`
+- Modify: `config/settings.py` (добавить `documents` в `INSTALLED_APPS`)
 
 - [ ] **Step 1: Написать падающий тест**
 
+`documents/__init__.py`: empty file.
 `documents/tests/__init__.py`: empty file.
 
 `documents/tests/factories.py`:
@@ -442,12 +447,17 @@ def test_document_slug_is_unique():
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -v`
-Expected: FAIL — `documents.models` / `Document` не существует.
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -v`
+Expected: FAIL — `documents.models` / `Document` не существует (ModuleNotFoundError/ImportError).
 
-- [ ] **Step 3: Создать приложение и модель Document**
+- [ ] **Step 3: Добавить `documents` в INSTALLED_APPS, создать приложение и модель Document**
 
-`documents/__init__.py`: empty file.
+Modify `config/settings.py` — добавить `"documents"` в `INSTALLED_APPS` после `"accounts"`:
+```python
+    "accounts",
+    "documents",
+]
+```
 
 `documents/apps.py`:
 ```python
@@ -500,18 +510,18 @@ class Document(models.Model):
         return f"{self.get_doc_type_display()} {self.official_number}: {self.title[:60]}"
 ```
 
-- [ ] **Step 4: Создать и применить миграцию**
+- [ ] **Step 4: Создать миграцию и прогнать тесты**
 
-Run: `docker compose run --rm web python manage.py makemigrations documents`
+Run: `.venv\Scripts\python.exe manage.py makemigrations documents`
 Expected: создан `documents/migrations/0001_initial.py`.
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -v`
-Expected: `2 passed` (pytest-django применяет миграции к тестовой БД).
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -v`
+Expected: `2 passed`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add documents
+git add documents config/settings.py
 git commit -m "feat(documents): Document model"
 ```
 
@@ -520,9 +530,9 @@ git commit -m "feat(documents): Document model"
 ## Task 4: Модель Redaction (+ публикация и «текущая редакция»)
 
 **Files:**
-- Modify: `documents/models.py` (добавить класс `Redaction`)
-- Modify: `documents/tests/factories.py` (добавить `make_redaction`)
-- Test: `documents/tests/test_models.py` (добавить тесты)
+- Modify: `documents/models.py` (класс `Redaction`)
+- Modify: `documents/tests/factories.py` (`make_redaction`)
+- Modify: `documents/tests/test_models.py` (тесты)
 
 - [ ] **Step 1: Написать падающие тесты**
 
@@ -592,7 +602,7 @@ def test_only_one_current_redaction_per_document():
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -k "redaction or publish or current" -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -k "redaction or publish or current" -v`
 Expected: FAIL — `Redaction` не существует.
 
 - [ ] **Step 3: Добавить модель Redaction**
@@ -649,10 +659,10 @@ class Redaction(models.Model):
 
 - [ ] **Step 4: Миграция и прогон тестов**
 
-Run: `docker compose run --rm web python manage.py makemigrations documents`
+Run: `.venv\Scripts\python.exe manage.py makemigrations documents`
 Expected: создан `0002_redaction...py`.
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -v`
 Expected: все тесты passed.
 
 - [ ] **Step 5: Commit**
@@ -669,7 +679,7 @@ git commit -m "feat(documents): Redaction with publish() and current-redaction c
 **Files:**
 - Modify: `documents/models.py` (класс `Article`)
 - Modify: `documents/tests/factories.py` (`make_article`)
-- Test: `documents/tests/test_models.py`
+- Modify: `documents/tests/test_models.py` (тесты)
 
 - [ ] **Step 1: Написать падающие тесты**
 
@@ -718,7 +728,7 @@ def test_article_hierarchy_parent_children():
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -k article -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -k article -v`
 Expected: FAIL — `Article` не существует.
 
 - [ ] **Step 3: Добавить модель Article**
@@ -772,10 +782,10 @@ class Article(models.Model):
 
 - [ ] **Step 4: Миграция и прогон тестов**
 
-Run: `docker compose run --rm web python manage.py makemigrations documents`
+Run: `.venv\Scripts\python.exe manage.py makemigrations documents`
 Expected: создан `0003_article...py`.
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -v`
 Expected: все passed.
 
 - [ ] **Step 5: Commit**
@@ -792,7 +802,7 @@ git commit -m "feat(documents): Article model with hierarchy and auto anchors"
 **Files:**
 - Modify: `documents/models.py` (класс `Link`)
 - Modify: `documents/tests/factories.py` (`make_link`)
-- Test: `documents/tests/test_models.py`
+- Modify: `documents/tests/test_models.py` (тесты)
 
 - [ ] **Step 1: Написать падающие тесты**
 
@@ -837,7 +847,7 @@ def test_link_str_uses_target_document_when_present():
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -k link -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -k link -v`
 Expected: FAIL — `Link` не существует.
 
 - [ ] **Step 3: Добавить модель Link**
@@ -902,10 +912,10 @@ class Link(models.Model):
 
 - [ ] **Step 4: Миграция и прогон тестов**
 
-Run: `docker compose run --rm web python manage.py makemigrations documents`
+Run: `.venv\Scripts\python.exe manage.py makemigrations documents`
 Expected: создан `0004_link...py`.
 
-Run: `docker compose run --rm web pytest documents/tests/test_models.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_models.py -v`
 Expected: все passed.
 
 - [ ] **Step 5: Commit**
@@ -920,8 +930,7 @@ git commit -m "feat(documents): Link model (typed cross-references)"
 ## Task 7: Admin (пульт куратора)
 
 **Files:**
-- Create: `documents/admin.py`
-- Test: `documents/tests/test_admin.py`
+- Create: `documents/admin.py`, `documents/tests/test_admin.py`
 
 - [ ] **Step 1: Написать падающий тест**
 
@@ -943,7 +952,7 @@ def test_admin_document_changelist_loads_for_superuser(client):
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_admin.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_admin.py -v`
 Expected: FAIL — `documents.Document` не зарегистрирован в admin (NoReverseMatch).
 
 - [ ] **Step 3: Зарегистрировать модели в admin**
@@ -978,9 +987,10 @@ class RedactionAdmin(admin.ModelAdmin):
 
     @admin.action(description="Опубликовать выбранные редакции")
     def publish_selected(self, request, queryset):
+        count = queryset.count()
         for redaction in queryset:
             redaction.publish()
-        self.message_user(request, f"Опубликовано: {queryset.count()}")
+        self.message_user(request, f"Опубликовано: {count}")
 
 
 @admin.register(Link)
@@ -997,7 +1007,7 @@ class LinkAdmin(admin.ModelAdmin):
 
 - [ ] **Step 4: Запустить — убедиться, что проходит**
 
-Run: `docker compose run --rm web pytest documents/tests/test_admin.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_admin.py -v`
 Expected: `1 passed`.
 
 - [ ] **Step 5: Commit**
@@ -1009,13 +1019,13 @@ git commit -m "feat(documents): admin curation cockpit (publish/confirm actions)
 
 ---
 
-## Task 8: Страница списка актов (только опубликованные)
+## Task 8: Страница списка актов (только опубликованные) + маршруты
 
 **Files:**
 - Create: `documents/views.py`
 - Create: `templates/base.html`, `templates/documents/document_list.html`, `templates/registration/login.html`
-- Modify: `config/urls.py` (раскомментировать `views`-маршруты, если комментировал в Task 1)
-- Test: `documents/tests/test_views.py`
+- Modify: `config/urls.py` (добавить маршруты документов)
+- Create: `documents/tests/test_views.py`
 
 - [ ] **Step 1: Написать падающие тесты**
 
@@ -1061,12 +1071,10 @@ def test_list_shows_only_documents_with_published_current_redaction(auth_client)
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_views.py -v`
-Expected: FAIL — `document_list` view / шаблон отсутствуют.
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_views.py -v`
+Expected: FAIL — `document_list` (view/маршрут/шаблон) отсутствует.
 
 - [ ] **Step 3: Реализовать view, шаблоны, маршруты**
-
-Если в Task 1 ты комментировал строки с `views` в `config/urls.py` — раскомментируй их сейчас (маршруты `document_list` и `document_detail`).
 
 `documents/views.py`:
 ```python
@@ -1123,6 +1131,21 @@ def document_detail(request, slug):
             "published_redactions": published_redactions,
         },
     )
+```
+
+Modify `config/urls.py` — добавить импорт и маршруты документов:
+```python
+from django.contrib import admin
+from django.urls import include, path
+
+from documents import views
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("accounts/", include("django.contrib.auth.urls")),
+    path("", views.document_list, name="document_list"),
+    path("doc/<slug:slug>/", views.document_detail, name="document_detail"),
+]
 ```
 
 `templates/base.html`:
@@ -1196,14 +1219,14 @@ def document_detail(request, slug):
 
 - [ ] **Step 4: Запустить — убедиться, что проходит**
 
-Run: `docker compose run --rm web pytest documents/tests/test_views.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_views.py -v`
 Expected: оба теста passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add documents/views.py templates config/urls.py documents/tests/test_views.py
-git commit -m "feat(documents): document list page (published only, login required)"
+git commit -m "feat(documents): document list page + routes (published only, login required)"
 ```
 
 ---
@@ -1212,7 +1235,7 @@ git commit -m "feat(documents): document list page (published only, login requir
 
 **Files:**
 - Create: `templates/documents/document_detail.html`
-- Test: `documents/tests/test_views.py` (добавить тесты)
+- Modify: `documents/tests/test_views.py` (тесты)
 
 - [ ] **Step 1: Написать падающие тесты**
 
@@ -1264,7 +1287,7 @@ def test_detail_404_when_no_published_redaction(auth_client):
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_views.py -k detail -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_views.py -k detail -v`
 Expected: FAIL — шаблон `document_detail.html` отсутствует (`TemplateDoesNotExist`).
 
 - [ ] **Step 3: Создать шаблон просмотрщика**
@@ -1362,7 +1385,7 @@ Expected: FAIL — шаблон `document_detail.html` отсутствует (`
 
 - [ ] **Step 4: Запустить — убедиться, что проходит**
 
-Run: `docker compose run --rm web pytest documents/tests/test_views.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_views.py -v`
 Expected: все тесты passed.
 
 - [ ] **Step 5: Commit**
@@ -1374,11 +1397,11 @@ git commit -m "feat(documents): document viewer (requisites, TOC, articles, conf
 
 ---
 
-## Task 10: Сквозная проверка и фикстура для ручной приёмки
+## Task 10: Демо-данные и сквозная приёмка
 
 **Files:**
 - Create: `documents/management/__init__.py`, `documents/management/commands/__init__.py`, `documents/management/commands/seed_demo.py`
-- Test: `documents/tests/test_seed.py`
+- Create: `documents/tests/test_seed.py`
 
 - [ ] **Step 1: Написать падающий тест**
 
@@ -1402,7 +1425,7 @@ def test_seed_demo_creates_published_document():
 
 - [ ] **Step 2: Запустить — убедиться, что падает**
 
-Run: `docker compose run --rm web pytest documents/tests/test_seed.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_seed.py -v`
 Expected: FAIL — команда `seed_demo` не найдена.
 
 - [ ] **Step 3: Создать management-команду для демо-данных**
@@ -1452,19 +1475,19 @@ class Command(BaseCommand):
 
 - [ ] **Step 4: Запустить — убедиться, что проходит**
 
-Run: `docker compose run --rm web pytest documents/tests/test_seed.py -v`
+Run: `.venv\Scripts\python.exe -m pytest documents/tests/test_seed.py -v`
 Expected: `1 passed`.
 
 - [ ] **Step 5: Полный прогон + ручная приёмка**
 
-Run: `docker compose run --rm web pytest -v`
+Run: `.venv\Scripts\python.exe -m pytest -v`
 Expected: все тесты passed.
 
-Run: `docker compose run --rm web python manage.py migrate`
-Run: `docker compose run --rm web python manage.py seed_demo`
-Run: `docker compose run --rm web python manage.py createsuperuser` (задать логин/пароль)
-Run: `docker compose up`
-Открыть `http://localhost:8000/` → войти → увидеть демо-акт в списке → открыть → проверить реквизиты, оглавление, якорь `#st-81`. Открыть `http://localhost:8000/admin/` → убедиться, что куратор может править акт.
+Run: `.venv\Scripts\python.exe manage.py migrate`
+Run: `.venv\Scripts\python.exe manage.py seed_demo`
+Run: `.venv\Scripts\python.exe manage.py createsuperuser` (задать логин/пароль)
+Run: `.venv\Scripts\python.exe manage.py runserver`
+Открыть `http://localhost:8000/` → войти → увидеть демо-акт в списке → открыть → проверить реквизиты, оглавление, якорь `#st-81`. Открыть `http://localhost:8000/admin/` → убедиться, что куратор может править акт. (Остановить сервер: Ctrl+C.)
 
 - [ ] **Step 6: Commit**
 
@@ -1478,21 +1501,23 @@ git commit -m "feat(documents): seed_demo command + full acceptance pass"
 ## Self-Review (выполнено при написании плана)
 
 **1. Покрытие спецификации (План 1 = §16 шаги 1,2,3,5):**
-- §5 Модель данных (Document/Redaction/Article/Link) → Tasks 3–6. RawSource/IngestionJob — намеренно в Плане 3 (ингест), здесь не требуются.
+- §5 Модель данных (Document/Redaction/Article/Link) → Tasks 3–6. RawSource/IngestionJob — в Плане 3.
 - §7 Курирование (admin, publish, confirm) → Task 7.
 - §9 Просмотрщик (реквизиты, оглавление, якоря, панели связей, переключатель редакций, только confirmed читателю) → Task 9.
 - §10 Авторизация и роли → Task 2 + `login_required` (Tasks 8–9).
-- §11 Стек и Docker → Task 1.
+- §11 Стек → Task 1 (локальный вариант; Docker+Postgres переносятся в Планы 2/3 согласно §11).
 - §12 Тестирование (pytest, фикстуры) → во всех задачах; фикстуры в `factories.py`.
 - §4 «текущая редакция» (одна на документ, публикация) → Task 4.
-- Поиск (§8) и Приём данных (§6) — НЕ в этом плане (Планы 2 и 3). Это явно зафиксировано в шапке.
+- Поиск (§8) и Приём данных (§6) — НЕ в этом плане (Планы 2 и 3).
 
 **2. Плейсхолдеры:** не найдено — каждый шаг содержит полный код/команду.
 
-**3. Согласованность типов/имён:** `Redaction.ReviewStatus.{DRAFT,PUBLISHED}`, `Link.Status.{SUGGESTED,CONFIRMED}`, `Article.Kind.{SECTION,CHAPTER,ARTICLE}`, метод `publish()`, поле `is_current`, якорь `anchor` — используются единообразно во всех задачах (модели → admin → views → шаблоны → тесты). `make_document/redaction/article/link` определены в `factories.py` до первого использования.
+**3. Согласованность типов/имён:** `Redaction.ReviewStatus.{DRAFT,PUBLISHED}`, `Link.Status.{SUGGESTED,CONFIRMED}`, `Article.Kind.{SECTION,CHAPTER,ARTICLE}`, метод `publish()`, поле `is_current`, якорь `anchor`, фабрики `make_document/redaction/article/link` — единообразны во всех задачах.
+
+**4. Очерёдность подключения (критично для запуска):** `accounts` → INSTALLED_APPS в Task 2; `documents` → INSTALLED_APPS в Task 3; маршруты документов и импорт `views` → в `config/urls.py` в Task 8. До этих задач Django не ссылается на несуществующие модули. Команда `migrate` в Task 1 не импортирует `urls.py`, поэтому каркас запускается.
 
 ---
 
 ## Execution Handoff
 
-План сохранён. Дальше — выбор способа исполнения (см. сообщение в чате).
+План сохранён. Способ исполнения — субагентами (выбрано). Перед стартом исполнения может быть создан изолированный git worktree (через superpowers:using-git-worktrees), затем задачи выполняются по очереди свежими субагентами с проверкой между ними (superpowers:subagent-driven-development).
