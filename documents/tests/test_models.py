@@ -16,3 +16,44 @@ def test_document_slug_is_unique():
     make_document(slug="tk-rf")
     with pytest.raises(Exception):
         make_document(slug="tk-rf", official_number="X")
+
+
+from datetime import date
+
+from django.db import IntegrityError, transaction
+
+from documents.models import Redaction
+from documents.tests.factories import make_redaction
+
+
+@pytest.mark.django_db
+def test_publish_sets_current_and_unsets_previous():
+    doc = make_document()
+    first = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    first.publish()
+    second = make_redaction(doc, redaction_date=date(2024, 1, 1))
+    second.publish()
+
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert second.is_current is True
+    assert second.review_status == Redaction.ReviewStatus.PUBLISHED
+    assert first.is_current is False
+
+
+@pytest.mark.django_db
+def test_unique_document_redaction_date():
+    doc = make_document()
+    make_redaction(doc, redaction_date=date(2024, 1, 1))
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            make_redaction(doc, redaction_date=date(2024, 1, 1))
+
+
+@pytest.mark.django_db
+def test_only_one_current_redaction_per_document():
+    doc = make_document()
+    make_redaction(doc, redaction_date=date(2023, 1, 1), is_current=True)
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            make_redaction(doc, redaction_date=date(2024, 1, 1), is_current=True)

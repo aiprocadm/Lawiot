@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 
 
 class Document(models.Model):
@@ -33,3 +33,48 @@ class Document(models.Model):
 
     def __str__(self):
         return f"{self.get_doc_type_display()} {self.official_number}: {self.title[:60]}"
+
+
+class Redaction(models.Model):
+    class ReviewStatus(models.TextChoices):
+        DRAFT = "draft", "Черновик"
+        PUBLISHED = "published", "Опубликовано"
+
+    document = models.ForeignKey(
+        Document, related_name="redactions", on_delete=models.CASCADE
+    )
+    redaction_date = models.DateField(help_text="Действует с")
+    full_text = models.TextField(blank=True)
+    review_status = models.CharField(
+        max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.DRAFT
+    )
+    is_current = models.BooleanField(default=False)
+    ingested_at = models.DateTimeField(null=True, blank=True)
+    parser_version = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-redaction_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "redaction_date"],
+                name="uniq_document_redaction_date",
+            ),
+            models.UniqueConstraint(
+                fields=["document"],
+                condition=models.Q(is_current=True),
+                name="uniq_current_redaction_per_document",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.document} — ред. от {self.redaction_date}"
+
+    def publish(self):
+        with transaction.atomic():
+            Redaction.objects.filter(
+                document=self.document, is_current=True
+            ).exclude(pk=self.pk).update(is_current=False)
+            self.review_status = self.ReviewStatus.PUBLISHED
+            self.is_current = True
+            self.save(update_fields=["review_status", "is_current"])

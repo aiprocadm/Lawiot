@@ -12,3 +12,22 @@ def make_document(**kwargs):
     }
     defaults.update(kwargs)
     return Document.objects.create(**defaults)
+
+
+from datetime import date
+
+from documents.models import Redaction
+
+
+def make_redaction(document=None, **kwargs):
+    if document is None:
+        document = make_document()
+    defaults = {
+        "document": document,
+        "redaction_date": date(2024, 1, 1),
+        "full_text": "Текст редакции.",
+        "review_status": Redaction.ReviewStatus.DRAFT,
+        "is_current": False,
+    }
+    defaults.update(kwargs)
+    return Redaction.objects.create(**defaults)
