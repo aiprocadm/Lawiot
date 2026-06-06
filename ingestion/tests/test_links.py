@@ -1,4 +1,8 @@
-from ingestion.links import find_citations
+import pytest
+
+from documents.models import Link
+from documents.tests.factories import make_article, make_document, make_redaction
+from ingestion.links import extract_links_for_redaction, find_citations
 
 
 def test_finds_fz_and_fkz_numbers():
@@ -24,13 +28,6 @@ def test_captures_context_around_citation():
     assert cite.number == "125-ФЗ"
     assert "125-ФЗ" in cite.context
     assert "страховании" in cite.context
-
-
-import pytest
-
-from documents.models import Link
-from documents.tests.factories import make_article, make_document, make_redaction
-from ingestion.links import extract_links_for_redaction
 
 
 @pytest.mark.django_db
