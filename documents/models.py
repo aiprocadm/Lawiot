@@ -1,4 +1,5 @@
 from django.db import models, transaction
+from django.utils.text import slugify
 
 
 class Document(models.Model):
@@ -78,3 +79,43 @@ class Redaction(models.Model):
             self.review_status = self.ReviewStatus.PUBLISHED
             self.is_current = True
             self.save(update_fields=["review_status", "is_current"])
+
+
+class Article(models.Model):
+    class Kind(models.TextChoices):
+        SECTION = "section", "Раздел"
+        CHAPTER = "chapter", "Глава"
+        ARTICLE = "article", "Статья"
+
+    redaction = models.ForeignKey(
+        Redaction, related_name="articles", on_delete=models.CASCADE
+    )
+    kind = models.CharField(
+        max_length=20, choices=Kind.choices, default=Kind.ARTICLE
+    )
+    number = models.CharField(max_length=50, blank=True)
+    title = models.CharField(max_length=500, blank=True)
+    text = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        related_name="children",
+        on_delete=models.CASCADE,
+    )
+    anchor = models.SlugField(max_length=100, blank=True)
+
+    _ANCHOR_PREFIX = {"section": "razdel", "chapter": "glava", "article": "st"}
+
+    class Meta:
+        ordering = ["order"]
+
+    def save(self, *args, **kwargs):
+        if not self.anchor and self.number:
+            prefix = self._ANCHOR_PREFIX.get(self.kind, "p")
+            self.anchor = f"{prefix}-{slugify(self.number)}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.get_kind_display()} {self.number}".strip()

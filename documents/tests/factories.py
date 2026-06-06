@@ -31,3 +31,21 @@ def make_redaction(document=None, **kwargs):
     }
     defaults.update(kwargs)
     return Redaction.objects.create(**defaults)
+
+
+from documents.models import Article
+
+
+def make_article(redaction=None, **kwargs):
+    if redaction is None:
+        redaction = make_redaction()
+    defaults = {
+        "redaction": redaction,
+        "kind": Article.Kind.ARTICLE,
+        "number": "81",
+        "title": "Расторжение трудового договора",
+        "text": "Трудовой договор может быть расторгнут...",
+        "order": 1,
+    }
+    defaults.update(kwargs)
+    return Article.objects.create(**defaults)
