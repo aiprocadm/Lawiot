@@ -1,3 +1,5 @@
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models, transaction
 from django.utils.text import slugify
 
@@ -53,6 +55,7 @@ class Redaction(models.Model):
     ingested_at = models.DateTimeField(null=True, blank=True)
     parser_version = models.CharField(max_length=50, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    search_vector = SearchVectorField(null=True, editable=False)
 
     class Meta:
         ordering = ["-redaction_date"]
@@ -67,6 +70,7 @@ class Redaction(models.Model):
                 name="uniq_current_redaction_per_document",
             ),
         ]
+        indexes = [GinIndex(fields=["search_vector"], name="redaction_search_gin")]
 
     def __str__(self):
         return f"{self.document} — ред. от {self.redaction_date}"
@@ -105,11 +109,13 @@ class Article(models.Model):
         on_delete=models.CASCADE,
     )
     anchor = models.SlugField(max_length=100, blank=True)
+    search_vector = SearchVectorField(null=True, editable=False)
 
     _ANCHOR_PREFIX = {"section": "razdel", "chapter": "glava", "article": "st"}
 
     class Meta:
         ordering = ["order"]
+        indexes = [GinIndex(fields=["search_vector"], name="article_search_gin")]
 
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:
