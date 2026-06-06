@@ -119,3 +119,59 @@ class Article(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()} {self.number}".strip()
+
+
+class Link(models.Model):
+    class LinkType(models.TextChoices):
+        REFERENCES = "references", "Ссылается на"
+        AMENDS = "amends", "Изменяет"
+        AMENDED_BY = "amended_by", "Изменён"
+
+    class Origin(models.TextChoices):
+        AUTO = "auto", "Парсер"
+        CURATOR = "curator", "Куратор"
+
+    class Status(models.TextChoices):
+        SUGGESTED = "suggested", "Предложена"
+        CONFIRMED = "confirmed", "Подтверждена"
+
+    from_document = models.ForeignKey(
+        Document, related_name="outgoing_links", on_delete=models.CASCADE
+    )
+    from_article = models.ForeignKey(
+        Article,
+        null=True,
+        blank=True,
+        related_name="outgoing_links",
+        on_delete=models.SET_NULL,
+    )
+    to_document = models.ForeignKey(
+        Document,
+        null=True,
+        blank=True,
+        related_name="incoming_links",
+        on_delete=models.CASCADE,
+    )
+    to_article = models.ForeignKey(
+        Article,
+        null=True,
+        blank=True,
+        related_name="incoming_links",
+        on_delete=models.SET_NULL,
+    )
+    raw_citation = models.TextField(blank=True)
+    link_type = models.CharField(
+        max_length=20, choices=LinkType.choices, default=LinkType.REFERENCES
+    )
+    origin = models.CharField(
+        max_length=20, choices=Origin.choices, default=Origin.CURATOR
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.SUGGESTED
+    )
+    context = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        target = self.to_document or self.raw_citation or "—"
+        return f"{self.from_document} — {self.get_link_type_display()} → {target}"

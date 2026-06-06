@@ -49,3 +49,20 @@ def make_article(redaction=None, **kwargs):
     }
     defaults.update(kwargs)
     return Article.objects.create(**defaults)
+
+
+from documents.models import Link
+
+
+def make_link(from_document=None, to_document=None, **kwargs):
+    if from_document is None:
+        from_document = make_document(slug="from-doc", official_number="1")
+    defaults = {
+        "from_document": from_document,
+        "to_document": to_document,
+        "link_type": Link.LinkType.REFERENCES,
+        "origin": Link.Origin.CURATOR,
+        "status": Link.Status.SUGGESTED,
+    }
+    defaults.update(kwargs)
+    return Link.objects.create(**defaults)

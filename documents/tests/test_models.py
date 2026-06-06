@@ -78,3 +78,21 @@ def test_article_hierarchy_parent_children():
     article = make_article(red, number="81", parent=chapter, order=2)
     assert article.parent == chapter
     assert list(chapter.children.all()) == [article]
+
+
+from documents.models import Link
+from documents.tests.factories import make_link
+
+
+@pytest.mark.django_db
+def test_link_defaults_to_suggested():
+    link = make_link()
+    assert link.status == Link.Status.SUGGESTED
+    assert link.origin == Link.Origin.CURATOR
+
+
+@pytest.mark.django_db
+def test_link_str_uses_target_document_when_present():
+    target = make_document(slug="to-doc", official_number="2")
+    link = make_link(to_document=target, link_type=Link.LinkType.AMENDS)
+    assert "Изменяет" in str(link)
