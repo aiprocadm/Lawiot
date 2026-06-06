@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Поиск — Lawiot{% endblock %}
+{% block content %}
+<h1>Поиск по актам</h1>
+
+<form method="get" role="search">
+  <input type="search" name="q" value="{{ query }}" placeholder="Введите запрос…" aria-label="Запрос">
+  <details>
+    <summary>Фильтры</summary>
+    <div class="grid">
+      <label>Тип {{ form.doc_type }}</label>
+      <label>Статус {{ form.status }}</label>
+      <label>Орган {{ form.issuing_body }}</label>
+    </div>
+    <div class="grid">
+      <label>Дата с {{ form.date_from }}</label>
+      <label>Дата по {{ form.date_to }}</label>
+    </div>
+  </details>
+  <button type="submit">Найти</button>
+</form>
+
+{% if query %}
+<p>Найдено: {{ results|length }} по запросу «{{ query }}».</p>
+{% for r in results %}
+<article>
+  <h3>
+    <a href="{% url 'document_detail' r.document.slug %}{% if r.article_anchor %}#{{ r.article_anchor }}{% endif %}">
+      {{ r.document.title }}{% if r.article_label %} — {{ r.article_label }}{% endif %}
+    </a>
+  </h3>
+  <small>{{ r.document.get_doc_type_display }} № {{ r.document.official_number }} · {{ r.document.get_status_display }}</small>
+  <p>{{ r.snippet|safe }}</p>
+</article>
+{% empty %}
+<p>Ничего не найдено.</p>
+{% endfor %}
+{% endif %}
+{% endblock %}
