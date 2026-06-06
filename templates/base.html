@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Lawiot{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <script src="https://unpkg.com/htmx.org@2.0.2"></script>
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><strong><a href="{% url 'document_list' %}">Lawiot</a></strong></li></ul>
+      <ul>
+        {% if user.is_authenticated %}
+        {% if user.is_staff %}<li><a href="{% url 'admin:index' %}">Курирование</a></li>{% endif %}
+        <li>
+          <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+            <button type="submit" class="secondary">Выйти</button>
+          </form>
+        </li>
+        {% else %}
+        <li><a href="{% url 'login' %}">Войти</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
