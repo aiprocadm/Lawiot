@@ -1,6 +1,8 @@
 import re
 from dataclasses import dataclass
 
+from documents.models import Document, Link
+
 # Номер НПА вида «197-ФЗ», «400-ФЗ», «1-ФКЗ» — самый надёжный якорь цитаты.
 CITATION_RE = re.compile(r"\b(\d{1,4}-(?:ФКЗ|ФЗ))\b")
 CONTEXT_WINDOW = 60
@@ -26,3 +28,65 @@ def find_citations(text):
         snippet = " ".join(text[start:end].split())
         seen[number] = Citation(number=number, context=snippet)
     return list(seen.values())
+
+
+def extract_links_for_redaction(redaction):
+    """Извлечь цитаты из текста редакции и создать предложенные (suggested) авто-связи.
+    Идемпотентно: прежние auto+suggested связи документа пересоздаются; подтверждённые
+    куратором связи не трогаются и не дублируются. Возвращает число созданных связей."""
+    document = redaction.document
+    parts = [redaction.full_text or ""]
+    parts.extend(article.text for article in redaction.articles.all())
+    text = "\n".join(parts)
+
+    citations = find_citations(text)
+
+    # сбросить прежние авто-предложения этого документа (подтверждённые не трогаем)
+    Link.objects.filter(
+        from_document=document,
+        origin=Link.Origin.AUTO,
+        status=Link.Status.SUGGESTED,
+    ).delete()
+
+    created = 0
+    for citation in citations:
+        target = (
+            Document.objects.filter(official_number=citation.number)
+            .exclude(pk=document.pk)  # не ссылаемся на самих себя
+            .first()
+        )
+        if target is not None:
+            already = Link.objects.filter(
+                from_document=document,
+                to_document=target,
+                link_type=Link.LinkType.REFERENCES,
+            ).exists()
+            if already:
+                continue
+            Link.objects.create(
+                from_document=document,
+                to_document=target,
+                link_type=Link.LinkType.REFERENCES,
+                origin=Link.Origin.AUTO,
+                status=Link.Status.SUGGESTED,
+                context=citation.context,
+            )
+        else:
+            if citation.number == document.official_number:
+                continue  # самоцитата без внешней цели
+            already = Link.objects.filter(
+                from_document=document,
+                raw_citation__icontains=citation.number,
+            ).exists()
+            if already:
+                continue
+            Link.objects.create(
+                from_document=document,
+                raw_citation=citation.context,
+                link_type=Link.LinkType.REFERENCES,
+                origin=Link.Origin.AUTO,
+                status=Link.Status.SUGGESTED,
+                context=citation.context,
+            )
+        created += 1
+    return created
