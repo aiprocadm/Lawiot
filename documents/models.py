@@ -1,4 +1,7 @@
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.db import models, transaction
+from django.db.models import Value
 from django.utils.text import slugify
 
 
@@ -53,6 +56,7 @@ class Redaction(models.Model):
     ingested_at = models.DateTimeField(null=True, blank=True)
     parser_version = models.CharField(max_length=50, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    search_vector = SearchVectorField(null=True, editable=False)
 
     class Meta:
         ordering = ["-redaction_date"]
@@ -67,6 +71,7 @@ class Redaction(models.Model):
                 name="uniq_current_redaction_per_document",
             ),
         ]
+        indexes = [GinIndex(fields=["search_vector"], name="redaction_search_gin")]
 
     def __str__(self):
         return f"{self.document} — ред. от {self.redaction_date}"
@@ -79,6 +84,22 @@ class Redaction(models.Model):
             self.review_status = self.ReviewStatus.PUBLISHED
             self.is_current = True
             self.save(update_fields=["review_status", "is_current"])
+            self.update_search_index()
+
+    def update_search_index(self):
+        Redaction.objects.filter(pk=self.pk).update(
+            search_vector=(
+                SearchVector(Value(self.document.title), weight="A", config="russian")
+                + SearchVector("full_text", weight="B", config="russian")
+            )
+        )
+        Article.objects.filter(redaction=self).update(
+            search_vector=(
+                SearchVector("number", weight="A", config="russian")
+                + SearchVector("title", weight="A", config="russian")
+                + SearchVector("text", weight="B", config="russian")
+            )
+        )
 
 
 class Article(models.Model):
@@ -105,11 +126,13 @@ class Article(models.Model):
         on_delete=models.CASCADE,
     )
     anchor = models.SlugField(max_length=100, blank=True)
+    search_vector = SearchVectorField(null=True, editable=False)
 
     _ANCHOR_PREFIX = {"section": "razdel", "chapter": "glava", "article": "st"}
 
     class Meta:
         ordering = ["order"]
+        indexes = [GinIndex(fields=["search_vector"], name="article_search_gin")]
 
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:

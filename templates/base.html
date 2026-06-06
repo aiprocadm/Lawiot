@@ -13,6 +13,7 @@
       <ul><li><strong><a href="{% url 'document_list' %}">Lawiot</a></strong></li></ul>
       <ul>
         {% if user.is_authenticated %}
+        <li><a href="{% url 'search' %}">Поиск</a></li>
         {% if user.is_staff %}<li><a href="{% url 'admin:index' %}">Курирование</a></li>{% endif %}
         <li>
           <form method="post" action="{% url 'logout' %}">{% csrf_token %}

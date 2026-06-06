@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lawiot-db
+    environment:
+      POSTGRES_DB: lawiot
+      POSTGRES_USER: lawiot
+      POSTGRES_PASSWORD: lawiot
+    ports:
+      - "5433:5432"
+    volumes:
+      - lawiot_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lawiot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lawiot_pgdata:
