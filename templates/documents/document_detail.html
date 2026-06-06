@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title|truncatechars:60 }} — Lawiot{% endblock %}
+{% block content %}
+
+<article>
+  <header>
+    <h1>{{ document.title }}</h1>
+    <p>
+      <strong>{{ document.get_doc_type_display }}</strong> № {{ document.official_number }}<br>
+      Орган: {{ document.issuing_body|default:"—" }}<br>
+      Статус: {{ document.get_status_display }}<br>
+      Редакция от: {{ redaction.redaction_date }}
+    </p>
+    {% if published_redactions.count > 1 %}
+    <details>
+      <summary>Другие редакции ({{ published_redactions.count }})</summary>
+      <ul>
+        {% for r in published_redactions %}
+        <li>Редакция от {{ r.redaction_date }}{% if r.is_current %} — текущая{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  </header>
+</article>
+
+<div class="grid">
+  <section>
+    {% if articles %}
+    <h2>Оглавление</h2>
+    <ul>
+      {% for a in articles %}
+      <li><a href="#{{ a.anchor }}">{{ a.get_kind_display }} {{ a.number }}. {{ a.title }}</a></li>
+      {% endfor %}
+    </ul>
+
+    <h2>Текст</h2>
+    {% for a in articles %}
+    <section id="{{ a.anchor }}">
+      <h3>{{ a.get_kind_display }} {{ a.number }}. {{ a.title }}</h3>
+      <p>{{ a.text|linebreaks }}</p>
+    </section>
+    {% endfor %}
+    {% else %}
+    <h2>Текст</h2>
+    <p>{{ redaction.full_text|linebreaks }}</p>
+    {% endif %}
+  </section>
+
+  <aside>
+    <h3>Изменяющие / изменённые акты</h3>
+    <ul>
+      {% for link in outgoing %}
+        {% if link.link_type == "amends" or link.link_type == "amended_by" %}
+        <li>{{ link.get_link_type_display }}:
+          {% if link.to_document %}
+          <a href="{% url 'document_detail' link.to_document.slug %}">{{ link.to_document.official_number }}</a>
+          {% else %}{{ link.raw_citation }}{% endif %}
+        </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+
+    <h3>Ссылается на</h3>
+    <ul>
+      {% for link in outgoing %}
+        {% if link.link_type == "references" %}
+        <li>Ссылается на:
+          {% if link.to_document %}
+          <a href="{% url 'document_detail' link.to_document.slug %}">{{ link.to_document.official_number }}</a>
+          {% else %}<span>{{ link.raw_citation }} (вне корпуса)</span>{% endif %}
+        </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+
+    <h3>На него ссылаются</h3>
+    <ul>
+      {% for link in incoming %}
+      <li><a href="{% url 'document_detail' link.from_document.slug %}">{{ link.from_document.official_number }}</a></li>
+      {% endfor %}
+    </ul>
+  </aside>
+</div>
+{% endblock %}
