@@ -55,6 +55,13 @@ class Redaction(models.Model):
     is_current = models.BooleanField(default=False)
     ingested_at = models.DateTimeField(null=True, blank=True)
     parser_version = models.CharField(max_length=50, blank=True)
+    raw_source = models.ForeignKey(
+        "ingestion.RawSource",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="redactions",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     search_vector = SearchVectorField(null=True, editable=False)
 
