@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "accounts",
     "documents",
     "search",
+    "ingestion",
 ]
 
 MIDDLEWARE = [
