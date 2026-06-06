@@ -29,11 +29,14 @@ def document_detail(request, slug):
         raise Http404("Нет опубликованной редакции")
 
     articles = redaction.articles.select_related("parent").all()
+    visible_statuses = [Link.Status.CONFIRMED]
+    if request.user.is_staff:
+        visible_statuses.append(Link.Status.SUGGESTED)
     outgoing = document.outgoing_links.filter(
-        status=Link.Status.CONFIRMED
+        status__in=visible_statuses
     ).select_related("to_document")
     incoming = document.incoming_links.filter(
-        status=Link.Status.CONFIRMED
+        status__in=visible_statuses
     ).select_related("from_document")
     published_redactions = document.redactions.filter(
         review_status=Redaction.ReviewStatus.PUBLISHED
@@ -48,6 +51,7 @@ def document_detail(request, slug):
             "articles": articles,
             "outgoing": outgoing,
             "incoming": incoming,
+            "is_curator": request.user.is_staff,
             "published_redactions": published_redactions,
         },
     )
