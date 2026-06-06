@@ -114,7 +114,7 @@ class Article(models.Model):
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:
             prefix = self._ANCHOR_PREFIX.get(self.kind, "p")
-            self.anchor = f"{prefix}-{slugify(self.number)}"
+            self.anchor = f"{prefix}-{slugify(self.number.replace('.', '-'))}"
         super().save(*args, **kwargs)
 
     def __str__(self):

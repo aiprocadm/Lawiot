@@ -96,3 +96,9 @@ def test_link_str_uses_target_document_when_present():
     target = make_document(slug="to-doc", official_number="2")
     link = make_link(to_document=target, link_type=Link.LinkType.AMENDS)
     assert "Изменяет" in str(link)
+
+
+@pytest.mark.django_db
+def test_article_anchor_preserves_dotted_number():
+    art = make_article(number="64.1")
+    assert art.anchor == "st-64-1"
