@@ -54,3 +54,39 @@ def test_drafts_are_not_searched():
 def test_empty_query_returns_empty():
     assert search_documents("") == []
     assert search_documents("   ") == []
+
+
+@pytest.mark.django_db
+def test_filters_by_date_range():
+    from datetime import date
+
+    old = make_document(slug="old", title="Старыйдок", sign_date=date(2010, 1, 1))
+    make_redaction(old, full_text="редкийтермин примертекст").publish()
+    new = make_document(slug="new", title="Новыйдок", sign_date=date(2024, 1, 1))
+    make_redaction(new, full_text="редкийтермин примертекст").publish()
+
+    only_new = search_documents("редкийтермин", date_from=date(2020, 1, 1))
+    assert {r.document for r in only_new} == {new}
+
+    only_old = search_documents("редкийтермин", date_to=date(2015, 1, 1))
+    assert {r.document for r in only_old} == {old}
+
+
+@pytest.mark.django_db
+def test_filters_by_status_and_issuing_body():
+    active = make_document(
+        slug="act", title="Действующий", status=Document.Status.IN_FORCE,
+        issuing_body="Минтруд России",
+    )
+    make_redaction(active, full_text="статусслово примертекст").publish()
+    repealed = make_document(
+        slug="rep", title="Утративший", status=Document.Status.REPEALED,
+        issuing_body="Иной орган",
+    )
+    make_redaction(repealed, full_text="статусслово примертекст").publish()
+
+    by_status = search_documents("статусслово", status=Document.Status.IN_FORCE)
+    assert {r.document for r in by_status} == {active}
+
+    by_body = search_documents("статусслово", issuing_body="минтруд")
+    assert {r.document for r in by_body} == {active}
