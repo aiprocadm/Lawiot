@@ -139,5 +139,8 @@ def import_manual(document, *, content, content_type="text/plain", source_url=""
     redaction = create_draft_from_parsed(
         document, parsed, raw_source=raw, redaction_date=redaction_date
     )
-    extract_links_for_redaction(redaction)
+    try:
+        extract_links_for_redaction(redaction)
+    except Exception:  # извлечение связей вторично: черновик сохранён, связи можно переизвлечь командой
+        pass
     return redaction

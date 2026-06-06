@@ -56,6 +56,18 @@ def test_external_citation_becomes_raw():
 
 
 @pytest.mark.django_db
+def test_distinct_numbers_with_substring_are_not_merged():
+    # «25-ФЗ» — подстрока «125-ФЗ»: дедуп не должен схлопывать их в одну связь.
+    src = make_document(slug="sub", official_number="197-ФЗ")
+    red = make_redaction(src, full_text="Применяются 125-ФЗ и 25-ФЗ одновременно.")
+    extract_links_for_redaction(red)
+    raws = set(
+        Link.objects.filter(from_document=src).values_list("raw_citation", flat=True)
+    )
+    assert raws == {"125-ФЗ", "25-ФЗ"}
+
+
+@pytest.mark.django_db
 def test_skips_self_citation():
     src = make_document(slug="self", official_number="197-ФЗ")
     red = make_redaction(src, full_text="Настоящий 197-ФЗ регулирует отношения.")

@@ -74,15 +74,17 @@ def extract_links_for_redaction(redaction):
         else:
             if citation.number == document.official_number:
                 continue  # самоцитата без внешней цели
+            # raw_citation = сам номер (точный дедуп; «25-ФЗ» не путать со «125-ФЗ»),
+            # а человекочитаемый фрагмент кладём в context (спека §5).
             already = Link.objects.filter(
                 from_document=document,
-                raw_citation__icontains=citation.number,
+                raw_citation=citation.number,
             ).exists()
             if already:
                 continue
             Link.objects.create(
                 from_document=document,
-                raw_citation=citation.context,
+                raw_citation=citation.number,
                 link_type=Link.LinkType.REFERENCES,
                 origin=Link.Origin.AUTO,
                 status=Link.Status.SUGGESTED,

@@ -11,7 +11,9 @@ class Command(BaseCommand):
         parser.add_argument("--slug", default="", help="ограничить документом с этим slug")
 
     def handle(self, *args, **options):
-        redactions = Redaction.objects.filter(is_current=True).select_related("document")
+        redactions = Redaction.objects.filter(
+            is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
+        ).select_related("document")
         if options["slug"]:
             redactions = redactions.filter(document__slug=options["slug"])
         total_links = 0
