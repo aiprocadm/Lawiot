@@ -55,7 +55,7 @@
         <li>{{ link.get_link_type_display }}:
           {% if link.to_document %}
           <a href="{% url 'document_detail' link.to_document.slug %}">{{ link.to_document.official_number }}</a>
-          {% else %}{{ link.raw_citation }}{% endif %}
+          {% else %}{{ link.raw_citation }}{% endif %}{% if link.status == "suggested" %} <small>(предложена)</small>{% endif %}
         </li>
         {% endif %}
       {% endfor %}
@@ -68,7 +68,7 @@
         <li>Ссылается на:
           {% if link.to_document %}
           <a href="{% url 'document_detail' link.to_document.slug %}">{{ link.to_document.official_number }}</a>
-          {% else %}<span>{{ link.raw_citation }} (вне корпуса)</span>{% endif %}
+          {% else %}<span>{{ link.raw_citation }} (вне корпуса)</span>{% endif %}{% if link.status == "suggested" %} <small>(предложена)</small>{% endif %}
         </li>
         {% endif %}
       {% endfor %}
@@ -77,7 +77,7 @@
     <h3>На него ссылаются</h3>
     <ul>
       {% for link in incoming %}
-      <li><a href="{% url 'document_detail' link.from_document.slug %}">{{ link.from_document.official_number }}</a></li>
+      <li><a href="{% url 'document_detail' link.from_document.slug %}">{{ link.from_document.official_number }}</a>{% if link.status == "suggested" %} <small>(предложена)</small>{% endif %}</li>
       {% endfor %}
     </ul>
   </aside>

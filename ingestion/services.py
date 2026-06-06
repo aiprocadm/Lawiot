@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from documents.models import Article, Document, Redaction
 from ingestion.fetching import fetch
+from ingestion.links import extract_links_for_redaction
 from ingestion.models import IngestionJob, RawSource
 from ingestion.parsing import PARSER_VERSION, parse_document
 
@@ -119,6 +120,11 @@ def ingest_target(target, *, client=None):
         job.produced_redaction = redaction
         job.status = IngestionJob.Status.SUCCESS
         log_lines.append(f"Создан черновик редакции #{redaction.pk}.")
+        try:
+            n_links = extract_links_for_redaction(redaction)
+            log_lines.append(f"Предложено связей: {n_links}.")
+        except Exception as link_exc:  # извлечение связей вторично — не валит приём
+            log_lines.append(f"Извлечение связей не удалось: {link_exc}")
     except Exception as exc:  # изоляция: сбой одной цели не валит пакет
         job.status = IngestionJob.Status.FAILED
         job.error = f"{type(exc).__name__}: {exc}"
@@ -127,9 +133,14 @@ def ingest_target(target, *, client=None):
 
 
 def import_manual(document, *, content, content_type="text/plain", source_url="", redaction_date=None):
-    """Запасной путь: куратор подаёт байты/текст напрямую → черновик редакции."""
+    """Запасной путь: куратор подаёт байты/текст напрямую → черновик редакции + предложенные связи."""
     raw = store_raw_source(f"manual:{document.slug}", content, content_type, source_url)
     parsed = parse_document(content, content_type)
-    return create_draft_from_parsed(
+    redaction = create_draft_from_parsed(
         document, parsed, raw_source=raw, redaction_date=redaction_date
     )
+    try:
+        extract_links_for_redaction(redaction)
+    except Exception:  # извлечение связей вторично: черновик сохранён, связи можно переизвлечь командой
+        pass
+    return redaction

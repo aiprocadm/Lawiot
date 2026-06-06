@@ -64,3 +64,16 @@ def test_import_document_command_creates_draft(tmp_path):
     call_command("import_document", "--slug", "tkfile", "--file", str(f))
     red = Redaction.objects.get(document=doc)
     assert red.articles.get().number == "1"
+
+
+@pytest.mark.django_db
+def test_extract_links_command_processes_current_redactions():
+    from documents.models import Link
+    from documents.tests.factories import make_redaction
+
+    src = make_document(slug="cmd-src", official_number="197-ФЗ")
+    make_document(slug="cmd-tgt", official_number="125-ФЗ")
+    red = make_redaction(src, full_text="Связано с 125-ФЗ.")
+    red.publish()  # становится текущей
+    call_command("extract_links")
+    assert Link.objects.filter(from_document=src, status=Link.Status.SUGGESTED).exists()

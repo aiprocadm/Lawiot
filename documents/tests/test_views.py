@@ -78,3 +78,43 @@ def test_detail_404_when_no_published_redaction(auth_client):
     make_redaction(doc, redaction_date=date(2024, 1, 1))  # черновик
     response = auth_client.get(reverse("document_detail", args=["draft-only"]))
     assert response.status_code == 404
+
+
+@pytest.fixture
+def curator_client(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        "curator", password="pass12345", is_staff=True
+    )
+    client.force_login(user)
+    return user, client
+
+
+@pytest.mark.django_db
+def test_curator_sees_suggested_links(curator_client):
+    _user, cclient = curator_client
+    doc = make_document(slug="csee", official_number="197-ФЗ")
+    make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
+    target = make_document(slug="csee-t", official_number="125-ФЗ")
+    make_link(
+        from_document=doc, to_document=target,
+        link_type=Link.LinkType.REFERENCES, status=Link.Status.SUGGESTED,
+    )
+    response = cclient.get(reverse("document_detail", args=["csee"]))
+    content = response.content.decode()
+    assert "125-ФЗ" in content
+    assert "предложена" in content  # пометка статуса для куратора
+
+
+@pytest.mark.django_db
+def test_reader_does_not_see_suggested_links(auth_client):
+    doc = make_document(slug="rsee", official_number="197-ФЗ")
+    make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
+    target = make_document(slug="rsee-t", official_number="125-ФЗ")
+    make_link(
+        from_document=doc, to_document=target,
+        link_type=Link.LinkType.REFERENCES, status=Link.Status.SUGGESTED,
+    )
+    response = auth_client.get(reverse("document_detail", args=["rsee"]))
+    content = response.content.decode()
+    assert "125-ФЗ" not in content       # предложенная связь скрыта от читателя
+    assert "предложена" not in content
