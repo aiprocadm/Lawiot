@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     "accounts",
     "documents",
+    "search",
 ]
 
 MIDDLEWARE = [
