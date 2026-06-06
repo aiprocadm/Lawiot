@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
 from documents.models import Document
+from ingestion.models import IngestionJob
 from ingestion.services import IngestionTarget, ingest_target
 
 
@@ -25,8 +26,10 @@ class Command(BaseCommand):
             target_key=options["key"] or options["slug"],
         )
         job = ingest_target(target)
+        if job.status == IngestionJob.Status.FAILED:
+            if job.log:
+                self.stderr.write(job.log)
+            raise CommandError(f"Приём не удался (job #{job.pk}): {job.error}")
         self.stdout.write(self.style.SUCCESS(f"Job #{job.pk}: {job.status}"))
         if job.log:
             self.stdout.write(job.log)
-        if job.error:
-            self.stderr.write(job.error)

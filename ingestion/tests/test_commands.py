@@ -37,6 +37,26 @@ def test_ingest_url_command_unknown_slug_errors():
 
 
 @pytest.mark.django_db
+def test_ingest_url_command_exits_nonzero_on_failed_job(monkeypatch):
+    import httpx
+    from django.core.management.base import CommandError
+
+    make_document(slug="tkfail", official_number="9")
+    from ingestion import services
+
+    def boom(url, client=None):
+        raise httpx.HTTPStatusError(
+            "500", request=httpx.Request("GET", url), response=httpx.Response(500)
+        )
+
+    monkeypatch.setattr(services, "fetch", boom)
+    # ingest_target catches the error into a FAILED job; the command must surface it
+    # as a non-zero exit (CommandError), not a silent success.
+    with pytest.raises(CommandError):
+        call_command("ingest_url", "--slug", "tkfail", "--url", "https://e.test/d")
+
+
+@pytest.mark.django_db
 def test_import_document_command_creates_draft(tmp_path):
     doc = make_document(slug="tkfile", official_number="2")
     f = tmp_path / "act.txt"

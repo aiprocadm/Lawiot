@@ -48,9 +48,13 @@ def create_draft_from_parsed(document, parsed, *, raw_source=None, redaction_dat
     Идемпотентно по (document, redaction_date). Опубликованную редакцию НИКОГДА не трогает."""
     redaction_date = redaction_date or timezone.now().date()
     with transaction.atomic():
-        existing = Redaction.objects.filter(
-            document=document, redaction_date=redaction_date
-        ).first()
+        # select_for_update: при будущем параллельном приёме (План 3c) блокирует строку,
+        # чтобы две задачи не создали черновик одновременно на одну (document, redaction_date).
+        existing = (
+            Redaction.objects.select_for_update()
+            .filter(document=document, redaction_date=redaction_date)
+            .first()
+        )
         if existing and existing.review_status == Redaction.ReviewStatus.PUBLISHED:
             raise PublishedRedactionExists(
                 f"Опубликованная редакция от {redaction_date} не перезаписывается автоматически."
@@ -89,9 +93,11 @@ def _finish(job, log_lines):
 def ingest_target(target, *, client=None):
     """Конвейер по одной цели: скачать → сохранить сырьё → обнаружить изменение →
     разобрать → создать черновик. Сбой изолирован (FAILED-job), сырьё сохраняется (карантин)."""
+    # Пессимистичный старт: пока конвейер не завершился успешно, запись считается FAILED.
+    # Так прерванный/упавший процесс не оставляет ложного «success» в аудите.
     job = IngestionJob.objects.create(
         target_key=target.target_key,
-        status=IngestionJob.Status.SUCCESS,
+        status=IngestionJob.Status.FAILED,
         started_at=timezone.now(),
     )
     log_lines = []
@@ -111,6 +117,7 @@ def ingest_target(target, *, client=None):
         log_lines.append(f"Разобрано статей: {len(parsed.articles)}.")
         redaction = create_draft_from_parsed(target.document, parsed, raw_source=raw)
         job.produced_redaction = redaction
+        job.status = IngestionJob.Status.SUCCESS
         log_lines.append(f"Создан черновик редакции #{redaction.pk}.")
     except Exception as exc:  # изоляция: сбой одной цели не валит пакет
         job.status = IngestionJob.Status.FAILED
