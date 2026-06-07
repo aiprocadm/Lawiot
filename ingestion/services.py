@@ -15,6 +15,10 @@ class PublishedRedactionExists(Exception):
     """Поднимается, когда приём попытался бы перезаписать опубликованную редакцию."""
 
 
+class ReparseYieldedNothing(Exception):
+    """Переразбор дал 0 статей там, где они были — черновик не затираем."""
+
+
 @dataclass
 class IngestionTarget:
     document: Document
@@ -144,3 +148,23 @@ def import_manual(document, *, content, content_type="text/plain", source_url=""
     except Exception:  # извлечение связей вторично: черновик сохранён, связи можно переизвлечь командой
         pass
     return redaction
+
+
+def reparse_redaction(redaction):
+    """Переразобрать ЧЕРНОВИК из сохранённого RawSource (без повторного скачивания).
+    Защита (#1281): если новый разбор даёт 0 статей, а у черновика статьи есть —
+    отменяем, чтобы смена формата источника молча не стёрла данные куратора."""
+    raw = redaction.raw_source
+    if raw is None:
+        raise ValueError("У редакции нет сохранённого RawSource — нечего переразбирать.")
+    parsed = parse_document(bytes(raw.content), raw.content_type)
+    if not parsed.articles and redaction.articles.exists():
+        raise ReparseYieldedNothing(
+            "Новый разбор дал 0 статей при наличии прежних — операция отменена."
+        )
+    return create_draft_from_parsed(
+        redaction.document,
+        parsed,
+        raw_source=raw,
+        redaction_date=redaction.redaction_date,
+    )

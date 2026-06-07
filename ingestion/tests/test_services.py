@@ -3,18 +3,20 @@ from datetime import date, datetime, timezone
 import httpx
 import pytest
 
-from documents.models import Redaction
+from documents.models import Article, Document, Redaction
 from documents.tests.factories import make_document, make_redaction
 from ingestion.models import IngestionJob, RawSource
 from ingestion.parsing import parse_document
 from ingestion.services import (
     IngestionTarget,
     PublishedRedactionExists,
+    ReparseYieldedNothing,
     compute_hash,
     content_changed,
     create_draft_from_parsed,
     import_manual,
     ingest_target,
+    reparse_redaction,
     store_raw_source,
 )
 
@@ -176,3 +178,38 @@ def test_import_manual_extracts_suggested_links():
     content = "Статья 1. Сфера\nПрименяется вместе с 125-ФЗ.".encode("utf-8")
     import_manual(src, content=content, content_type="text/plain")
     assert Link.objects.filter(from_document=src, status=Link.Status.SUGGESTED).exists()
+
+
+@pytest.mark.django_db
+def test_reparse_restores_articles_from_raw():
+    doc = Document.objects.create(doc_type="federal_law", title="Тест", official_number="1-ФЗ", slug="1-fz")
+    red = import_manual(doc, content="Статья 1. Первая.\nСтатья 2. Вторая.".encode("utf-8"))
+    assert red.articles.count() == 2
+    red.articles.filter(number="2").delete()       # «потеряли» статью
+    assert red.articles.count() == 1
+    reparse_redaction(red)                          # переразбор из того же RawSource
+    red.refresh_from_db()
+    assert red.articles.count() == 2                # восстановлено
+
+
+@pytest.mark.django_db
+def test_reparse_zero_articles_does_not_wipe():
+    doc = Document.objects.create(doc_type="federal_law", title="Тест", official_number="2-ФЗ", slug="2-fz")
+    raw = RawSource.objects.create(
+        target_key="manual:2-fz", content="Текст без статей".encode("utf-8"),
+        content_hash="x", content_type="text/plain",
+    )
+    red = Redaction.objects.create(document=doc, redaction_date="2026-01-01", raw_source=raw)
+    Article.objects.create(redaction=red, number="1", text="была статья", order=0)
+    with pytest.raises(ReparseYieldedNothing):
+        reparse_redaction(red)
+    red.refresh_from_db()
+    assert red.articles.count() == 1                # не затёрли
+
+
+@pytest.mark.django_db
+def test_reparse_without_raw_raises():
+    doc = Document.objects.create(doc_type="federal_law", title="Тест", official_number="3-ФЗ", slug="3-fz")
+    red = Redaction.objects.create(document=doc, redaction_date="2026-01-01", raw_source=None)
+    with pytest.raises(ValueError):
+        reparse_redaction(red)
