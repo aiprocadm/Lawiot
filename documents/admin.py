@@ -1,6 +1,11 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from documents.models import Article, Document, Link, Redaction
+from ingestion.services import (
+    PublishedRedactionExists,
+    ReparseYieldedNothing,
+    reparse_redaction,
+)
 
 
 class ArticleInline(admin.TabularInline):
@@ -23,7 +28,7 @@ class RedactionAdmin(admin.ModelAdmin):
     list_display = ("document", "redaction_date", "review_status", "is_current")
     list_filter = ("review_status", "is_current")
     inlines = [ArticleInline]
-    actions = ["publish_selected"]
+    actions = ["publish_selected", "reparse_from_raw"]
 
     @admin.action(description="Опубликовать выбранные редакции")
     def publish_selected(self, request, queryset):
@@ -31,6 +36,22 @@ class RedactionAdmin(admin.ModelAdmin):
         for redaction in queryset:
             redaction.publish()
         self.message_user(request, f"Опубликовано: {count}")
+
+    @admin.action(description="Переразобрать из RawSource")
+    def reparse_from_raw(self, request, queryset):
+        done = skipped = 0
+        for redaction in queryset:
+            if redaction.review_status != Redaction.ReviewStatus.DRAFT:
+                skipped += 1
+                continue
+            try:
+                reparse_redaction(redaction)
+                done += 1
+            except (ReparseYieldedNothing, PublishedRedactionExists, ValueError) as exc:
+                self.message_user(request, f"{redaction}: {exc}", level=messages.WARNING)
+        self.message_user(
+            request, f"Переразобрано: {done}; пропущено (не черновик): {skipped}"
+        )
 
 
 @admin.register(Link)
