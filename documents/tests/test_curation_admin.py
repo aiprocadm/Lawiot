@@ -1,4 +1,5 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
@@ -74,3 +75,44 @@ def test_review_queue_lists_drafts_and_failures(staff_client, draft_with_raw):
     assert resp.status_code == 200
     assert "197-ФЗ" in body          # черновик в очереди
     assert "tk-fail" in body         # сбой приёма (карантин)
+
+
+@pytest.mark.django_db
+def test_manual_import_get_renders_form(staff_client):
+    resp = staff_client.get(reverse("admin:documents_redaction_manual_import"))
+    assert resp.status_code == 200
+    assert "document" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_manual_import_paste_creates_draft(staff_client):
+    doc = Document.objects.create(doc_type="federal_law", title="ТК", official_number="197-ФЗ", slug="197-fz")
+    resp = staff_client.post(
+        reverse("admin:documents_redaction_manual_import"),
+        {"document": doc.pk, "paste_text": "Статья 1. Альфа.", "content_type": "text/plain"},
+    )
+    assert resp.status_code == 302
+    assert doc.redactions.count() == 1
+
+
+@pytest.mark.django_db
+def test_manual_import_file_creates_draft(staff_client):
+    doc = Document.objects.create(doc_type="federal_law", title="ТК", official_number="59-ФЗ", slug="59-fz")
+    upload = SimpleUploadedFile("act.txt", "Статья 1. Бета.".encode("utf-8"), content_type="text/plain")
+    resp = staff_client.post(
+        reverse("admin:documents_redaction_manual_import"),
+        {"document": doc.pk, "upload_file": upload, "content_type": "text/plain"},
+    )
+    assert resp.status_code == 302
+    assert doc.redactions.count() == 1
+
+
+@pytest.mark.django_db
+def test_manual_import_requires_content(staff_client):
+    doc = Document.objects.create(doc_type="federal_law", title="ТК", official_number="44-ФЗ", slug="44-fz")
+    resp = staff_client.post(
+        reverse("admin:documents_redaction_manual_import"),
+        {"document": doc.pk, "content_type": "text/plain"},
+    )
+    assert resp.status_code == 200            # форма с ошибкой, без редиректа
+    assert doc.redactions.count() == 0

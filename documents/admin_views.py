@@ -5,8 +5,10 @@ from django.contrib.admin import site as admin_site
 from django.shortcuts import get_object_or_404, redirect, render
 
 from documents.diffing import diff_articles
+from documents.forms import ManualImportForm
 from documents.models import Redaction
 from ingestion.models import IngestionJob
+from ingestion.services import import_manual
 
 
 def redaction_diff_view(request, pk):
@@ -66,3 +68,31 @@ def review_queue_view(request):
         ).count(),
     }
     return render(request, "admin/documents/redaction/review_queue.html", context)
+
+
+def manual_import_view(request):
+    if request.method == "POST":
+        form = ManualImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            cd = form.cleaned_data
+            if cd["upload_file"]:
+                content = cd["upload_file"].read()
+            else:
+                content = cd["paste_text"].encode("utf-8")
+            redaction = import_manual(
+                cd["document"],
+                content=content,
+                content_type=cd["content_type"],
+                source_url=cd["source_url"],
+                redaction_date=cd["redaction_date"] or None,
+            )
+            messages.success(request, f"Создан черновик редакции #{redaction.pk}.")
+            return redirect("admin:documents_redaction_change", redaction.pk)
+    else:
+        form = ManualImportForm()
+    context = {
+        **admin_site.each_context(request),
+        "title": "Ручной импорт",
+        "form": form,
+    }
+    return render(request, "admin/documents/redaction/import_form.html", context)

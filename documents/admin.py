@@ -1,7 +1,11 @@
 from django.contrib import admin, messages
 from django.urls import path
 
-from documents.admin_views import redaction_diff_view, review_queue_view
+from documents.admin_views import (
+    manual_import_view,
+    redaction_diff_view,
+    review_queue_view,
+)
 from documents.models import Article, Document, Link, Redaction
 from ingestion.services import (
     PublishedRedactionExists,
@@ -67,6 +71,11 @@ class RedactionAdmin(admin.ModelAdmin):
                 "<int:pk>/diff/",
                 self.admin_site.admin_view(redaction_diff_view),
                 name="documents_redaction_diff",
+            ),
+            path(
+                "import/",
+                self.admin_site.admin_view(manual_import_view),
+                name="documents_redaction_manual_import",
             ),
         ]
         return custom + super().get_urls()
