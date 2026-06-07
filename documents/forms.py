@@ -16,7 +16,9 @@ class ManualImportForm(forms.Form):
         initial="text/plain",
         label="Тип содержимого",
     )
-    source_url = forms.URLField(required=False, label="URL источника")
+    source_url = forms.URLField(
+        required=False, label="URL источника", assume_scheme="https"
+    )
     redaction_date = forms.DateField(required=False, label="Дата редакции (Действует с)")
 
     def clean(self):

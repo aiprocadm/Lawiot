@@ -8,7 +8,7 @@ from documents.diffing import diff_articles
 from documents.forms import ManualImportForm
 from documents.models import Redaction
 from ingestion.models import IngestionJob
-from ingestion.services import import_manual
+from ingestion.services import PublishedRedactionExists, import_manual
 
 
 def redaction_diff_view(request, pk):
@@ -79,15 +79,19 @@ def manual_import_view(request):
                 content = cd["upload_file"].read()
             else:
                 content = cd["paste_text"].encode("utf-8")
-            redaction = import_manual(
-                cd["document"],
-                content=content,
-                content_type=cd["content_type"],
-                source_url=cd["source_url"],
-                redaction_date=cd["redaction_date"] or None,
-            )
-            messages.success(request, f"Создан черновик редакции #{redaction.pk}.")
-            return redirect("admin:documents_redaction_change", redaction.pk)
+            try:
+                redaction = import_manual(
+                    cd["document"],
+                    content=content,
+                    content_type=cd["content_type"],
+                    source_url=cd["source_url"],
+                    redaction_date=cd["redaction_date"] or None,
+                )
+            except PublishedRedactionExists as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f"Создан черновик редакции #{redaction.pk}.")
+                return redirect("admin:documents_redaction_change", redaction.pk)
     else:
         form = ManualImportForm()
     context = {

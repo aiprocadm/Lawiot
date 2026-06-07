@@ -16,7 +16,7 @@
   <div class="diff-article diff-{{ d.status }}">
     <h3>Статья {{ d.number }} — <span class="status">{{ d.status }}</span></h3>
     {% if d.lines %}
-      <pre>{% for tag, text in d.lines %}<span class="line line-{{ tag }}">{{ tag }} {{ text }}</span>
+      <pre>{% for tag, text in d.lines %}<span class="line {% if tag == '+' %}line-add{% elif tag == '-' %}line-del{% else %}line-ctx{% endif %}">{{ tag }} {{ text }}</span>
 {% endfor %}</pre>
     {% endif %}
   </div>
@@ -30,7 +30,7 @@
   .diff-changed .status { color: #b8860b; }
   .diff-added   .status { color: #2e7d32; }
   .diff-removed .status { color: #c62828; }
-  .line-+ { background: #e6ffed; }
-  .line-- { background: #ffeef0; }
+  .line-add { background: #e6ffed; }
+  .line-del { background: #ffeef0; }
 </style>
 {% endblock %}

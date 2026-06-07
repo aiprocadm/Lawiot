@@ -116,3 +116,25 @@ def test_manual_import_requires_content(staff_client):
     )
     assert resp.status_code == 200            # форма с ошибкой, без редиректа
     assert doc.redactions.count() == 0
+
+
+@pytest.mark.django_db
+def test_manual_import_onto_published_date_shows_error_not_500(staff_client):
+    # Импорт на дату, где уже есть ОПУБЛИКОВАННАЯ редакция, должен вернуть
+    # дружелюбную ошибку (200), а не 500 — как защищённое действие reparse.
+    doc = Document.objects.create(doc_type="federal_law", title="ТК", official_number="90-ФЗ", slug="90-fz")
+    Redaction.objects.create(
+        document=doc, redaction_date="2020-01-01",
+        review_status=Redaction.ReviewStatus.PUBLISHED, is_current=True,
+    )
+    resp = staff_client.post(
+        reverse("admin:documents_redaction_manual_import"),
+        {
+            "document": doc.pk,
+            "paste_text": "Статья 1. Альфа.",
+            "content_type": "text/plain",
+            "redaction_date": "2020-01-01",
+        },
+    )
+    assert resp.status_code == 200          # дружелюбная ошибка, не 500
+    assert doc.redactions.count() == 1      # новый черновик не создан
