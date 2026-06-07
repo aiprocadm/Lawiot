@@ -1,5 +1,8 @@
+from io import StringIO
+
 import httpx
 import pytest
+from django.core.management import call_command
 
 from documents.models import Redaction
 from documents.tests.factories import make_document
@@ -102,3 +105,11 @@ def test_run_sweep_returns_summary_string():
     result = run_sweep()
     assert isinstance(result, str)
     assert "всего=" in result
+
+
+@pytest.mark.django_db
+def test_sweep_targets_command_reports_summary():
+    out = StringIO()
+    call_command("sweep_targets", stdout=out)  # без целей → нулевая сводка, без сети
+    assert "Обход завершён" in out.getvalue()
+    assert "всего=0" in out.getvalue()
