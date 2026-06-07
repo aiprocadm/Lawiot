@@ -16,5 +16,51 @@ services:
       timeout: 5s
       retries: 10
 
+  web:
+    build: .
+    container_name: lawiot-web
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+    environment:
+      DATABASE_URL: postgres://lawiot:lawiot@db:5432/lawiot
+      SECRET_KEY: ${SECRET_KEY:-dev-insecure-key-change-me}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,web}
+      SWEEP_CRON: ${SWEEP_CRON:-0 3 * * *}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # «Здоров», когда миграции применены — это и есть барьер для qcluster ниже.
+      test: ["CMD-SHELL", "python manage.py migrate --check"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  qcluster:
+    build: .
+    container_name: lawiot-qcluster
+    command: >
+      sh -c "python manage.py ensure_sweep_schedule &&
+             python manage.py qcluster"
+    environment:
+      DATABASE_URL: postgres://lawiot:lawiot@db:5432/lawiot
+      SECRET_KEY: ${SECRET_KEY:-dev-insecure-key-change-me}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,web}
+      SWEEP_CRON: ${SWEEP_CRON:-0 3 * * *}
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy   # дождаться миграций, потом ставить расписание
+    restart: unless-stopped
+
 volumes:
   lawiot_pgdata:

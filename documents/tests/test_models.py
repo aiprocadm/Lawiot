@@ -89,3 +89,9 @@ def test_link_str_uses_target_document_when_present():
 def test_article_anchor_preserves_dotted_number():
     art = make_article(number="64.1")
     assert art.anchor == "st-64-1"
+
+
+@pytest.mark.django_db
+def test_document_auto_ingest_defaults_false():
+    doc = make_document(slug="auto-flag", official_number="1")
+    assert doc.auto_ingest is False
