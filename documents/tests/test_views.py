@@ -1,9 +1,10 @@
-import pytest
 from datetime import date
+
+import pytest
 from django.urls import reverse
 
-from documents.models import Redaction
-from documents.tests.factories import make_document, make_redaction
+from documents.models import Link
+from documents.tests.factories import make_article, make_document, make_link, make_redaction
 
 
 @pytest.fixture
@@ -34,10 +35,6 @@ def test_list_shows_only_documents_with_published_current_redaction(auth_client)
     content = response.content.decode()
     assert "published" in content or "№ 1" in content
     assert "draft-only" not in content
-
-
-from documents.models import Article, Link
-from documents.tests.factories import make_article, make_link
 
 
 @pytest.mark.django_db
