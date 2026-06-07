@@ -17,6 +17,15 @@ class RawSourceAdmin(admin.ModelAdmin):
     )
     exclude = ("content",)  # сырые байты не показываем в форме
 
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 @admin.register(IngestionJob)
 class IngestionJobAdmin(admin.ModelAdmin):
@@ -39,3 +48,12 @@ class IngestionJobAdmin(admin.ModelAdmin):
         "raw_source",
         "produced_redaction",
     )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
