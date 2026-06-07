@@ -1,5 +1,6 @@
 """Кастомные admin-страницы курирования (diff / очередь / импорт).
 Регистрируются через RedactionAdmin.get_urls и оборачиваются admin_site.admin_view."""
+from django.contrib import messages
 from django.contrib.admin import site as admin_site
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -32,4 +33,13 @@ def redaction_diff_view(request, pk):
 
 
 def _publish_from_diff(request, draft):
+    if draft.review_status != Redaction.ReviewStatus.DRAFT:
+        messages.warning(request, "Редакция уже опубликована.")
+    else:
+        if draft.ingested_at and draft.redaction_date == draft.ingested_at.date():
+            messages.warning(
+                request, "Дата «Действует с» совпадает с датой приёма — проверьте её."
+            )
+        draft.publish()
+        messages.success(request, "Опубликовано.")
     return redirect("admin:documents_redaction_change", draft.pk)

@@ -50,3 +50,13 @@ def test_diff_view_shows_changed_article(staff_client, draft_with_raw):
     body = resp.content.decode()
     assert resp.status_code == 200
     assert "changed" in body  # CSS-класс статуса статьи №1
+
+
+@pytest.mark.django_db
+def test_publish_from_diff_publishes_and_indexes(staff_client, draft_with_raw):
+    resp = staff_client.post(reverse("admin:documents_redaction_diff", args=[draft_with_raw.pk]))
+    assert resp.status_code == 302
+    draft_with_raw.refresh_from_db()
+    assert draft_with_raw.review_status == Redaction.ReviewStatus.PUBLISHED
+    assert draft_with_raw.is_current is True
+    assert draft_with_raw.search_vector is not None
