@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    "django_q",
     "accounts",
     "documents",
     "search",
@@ -27,6 +28,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -75,9 +77,26 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "document_list"
 LOGOUT_REDIRECT_URL = "login"
+
+# --- Приём данных по расписанию (План 3c) ---------------------------------
+# Cron-выражение ежедневного обхода целей авто-приёма. По умолчанию 03:00.
+SWEEP_CRON = env("SWEEP_CRON", default="0 3 * * *")
+
+# django-q2: брокер задач прямо в Postgres (без Redis).
+Q_CLUSTER = {
+    "name": "lawiot",
+    "orm": "default",      # использовать БД Django как брокер
+    "workers": 2,
+    "timeout": 300,        # сек на задачу; должен быть < retry
+    "retry": 660,          # сек до повторной выдачи «зависшей» задачи
+    "max_attempts": 1,     # обход идемпотентен — не копим повторы при сбое
+    "catch_up": False,     # не «отыгрывать» пропущенные прогоны после простоя
+    "label": "Django Q",
+}
