@@ -27,6 +27,10 @@ class Document(models.Model):
         max_length=20, choices=Status.choices, default=Status.IN_FORCE
     )
     source_url = models.URLField(blank=True)
+    auto_ingest = models.BooleanField(
+        default=False,
+        help_text="Включить периодический авто-приём из source_url по расписанию.",
+    )
     official_pub_date = models.DateField(null=True, blank=True)
     slug = models.SlugField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -11,8 +11,9 @@ class ArticleInline(admin.TabularInline):
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ("title", "doc_type", "official_number", "status")
-    list_filter = ("doc_type", "status")
+    list_display = ("title", "doc_type", "official_number", "status", "auto_ingest")
+    list_filter = ("doc_type", "status", "auto_ingest")
+    list_editable = ("auto_ingest",)
     search_fields = ("title", "official_number")
     prepopulated_fields = {"slug": ("official_number",)}
 
