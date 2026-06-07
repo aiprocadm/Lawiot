@@ -150,3 +150,29 @@ def test_import_manual_creates_draft_from_text():
     assert red.review_status == Redaction.ReviewStatus.DRAFT
     assert red.articles.get().number == "1"
     assert RawSource.objects.filter(target_key="manual:man").count() == 1
+
+
+@pytest.mark.django_db
+def test_ingest_target_extracts_suggested_links():
+    from documents.models import Link
+
+    src = make_document(slug="ing-src", official_number="197-ФЗ")
+    make_document(slug="ing-tgt", official_number="125-ФЗ")
+    html = "<p>Регулируется Федеральным законом № 125-ФЗ.</p>".encode("utf-8")
+    target = IngestionTarget(document=src, url="https://e.test/x", target_key="ing-src")
+    job = ingest_target(target, client=_client_returning(html))
+    assert job.status == IngestionJob.Status.SUCCESS
+    assert Link.objects.filter(
+        from_document=src, status=Link.Status.SUGGESTED, origin=Link.Origin.AUTO
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_import_manual_extracts_suggested_links():
+    from documents.models import Link
+
+    src = make_document(slug="man-src", official_number="197-ФЗ")
+    make_document(slug="man-tgt", official_number="125-ФЗ")
+    content = "Статья 1. Сфера\nПрименяется вместе с 125-ФЗ.".encode("utf-8")
+    import_manual(src, content=content, content_type="text/plain")
+    assert Link.objects.filter(from_document=src, status=Link.Status.SUGGESTED).exists()

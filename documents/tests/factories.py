@@ -1,4 +1,6 @@
-from documents.models import Document
+from datetime import date
+
+from documents.models import Article, Document, Link, Redaction
 
 
 def make_document(**kwargs):
@@ -12,11 +14,6 @@ def make_document(**kwargs):
     }
     defaults.update(kwargs)
     return Document.objects.create(**defaults)
-
-
-from datetime import date
-
-from documents.models import Redaction
 
 
 def make_redaction(document=None, **kwargs):
@@ -33,9 +30,6 @@ def make_redaction(document=None, **kwargs):
     return Redaction.objects.create(**defaults)
 
 
-from documents.models import Article
-
-
 def make_article(redaction=None, **kwargs):
     if redaction is None:
         redaction = make_redaction()
@@ -49,9 +43,6 @@ def make_article(redaction=None, **kwargs):
     }
     defaults.update(kwargs)
     return Article.objects.create(**defaults)
-
-
-from documents.models import Link
 
 
 def make_link(from_document=None, to_document=None, **kwargs):
