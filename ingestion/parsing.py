@@ -7,6 +7,10 @@ PARSER_VERSION = "1.0"
 
 # Заголовок статьи: «Статья 81. Расторжение…» / «Статья 312.1. …»
 ARTICLE_RE = re.compile(r"^Статья\s+(\d+(?:\.\d+)?)\.?\s*(.*)$")
+# Раздел римской цифрой: «Раздел I. Общие положения»
+SECTION_RE = re.compile(r"^Раздел\s+([IVXLCDM]+)\.?\s*(.*)$")
+# Глава арабской цифрой: «Глава 1. Основные начала» / «Глава 12.1. …»
+CHAPTER_RE = re.compile(r"^Глава\s+(\d+(?:\.\d+)?)\.?\s*(.*)$")
 
 
 @dataclass
@@ -15,6 +19,8 @@ class ParsedArticle:
     title: str
     text: str
     order: int
+    kind: str = "article"            # "section" | "chapter" | "article"
+    parent_order: int | None = None  # order of the nearest enclosing parent node
 
 
 @dataclass
@@ -73,3 +79,46 @@ def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDoc
             title = line
             break
     return ParsedDocument(full_text=text, title=title, articles=articles)
+
+
+def parse_structure(text: str) -> list[ParsedArticle]:
+    """Иерархический разбор: разделы/главы/статьи в порядке следования.
+    parent_order указывает на order ближайшего раздела (для главы) или главы/раздела (для статьи)."""
+    nodes: list[ParsedArticle] = []
+    order = 0
+    current_section: int | None = None
+    current_chapter: int | None = None
+    current_article: ParsedArticle | None = None
+    body: list[str] = []
+
+    def flush_article() -> None:
+        nonlocal current_article
+        if current_article is not None:
+            current_article.text = "\n".join(body).strip()
+            current_article = None
+
+    for line in text.splitlines():
+        sec = SECTION_RE.match(line)
+        chap = CHAPTER_RE.match(line)
+        art = ARTICLE_RE.match(line)
+        if sec:
+            flush_article()
+            order += 1
+            nodes.append(ParsedArticle(sec.group(1), sec.group(2).strip(), "", order, "section", None))
+            current_section, current_chapter = order, None
+        elif chap:
+            flush_article()
+            order += 1
+            nodes.append(ParsedArticle(chap.group(1), chap.group(2).strip(), "", order, "chapter", current_section))
+            current_chapter = order
+        elif art:
+            flush_article()
+            order += 1
+            parent = current_chapter if current_chapter is not None else current_section
+            current_article = ParsedArticle(art.group(1), art.group(2).strip(), "", order, "article", parent)
+            nodes.append(current_article)
+            body = []
+        elif current_article is not None:
+            body.append(line)
+    flush_article()
+    return nodes
