@@ -113,3 +113,25 @@ def test_sweep_targets_command_reports_summary():
     call_command("sweep_targets", stdout=out)  # без целей → нулевая сводка, без сети
     assert "Обход завершён" in out.getvalue()
     assert "всего=0" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_ensure_sweep_schedule_is_idempotent():
+    from django_q.models import Schedule
+
+    call_command("ensure_sweep_schedule")
+    call_command("ensure_sweep_schedule")  # повтор не создаёт дубль
+    qs = Schedule.objects.filter(name="daily-sweep")
+    assert qs.count() == 1
+    sched = qs.get()
+    assert sched.func == "ingestion.scheduling.run_sweep"
+    assert sched.schedule_type == Schedule.CRON
+
+
+@pytest.mark.django_db
+def test_ensure_sweep_schedule_updates_cron(settings):
+    from django_q.models import Schedule
+
+    settings.SWEEP_CRON = "0 5 * * *"
+    call_command("ensure_sweep_schedule")
+    assert Schedule.objects.get(name="daily-sweep").cron == "0 5 * * *"
