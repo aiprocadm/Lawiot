@@ -1,5 +1,7 @@
 from django.contrib import admin, messages
+from django.urls import path
 
+from documents.admin_views import redaction_diff_view
 from documents.models import Article, Document, Link, Redaction
 from ingestion.services import (
     PublishedRedactionExists,
@@ -52,6 +54,16 @@ class RedactionAdmin(admin.ModelAdmin):
         self.message_user(
             request, f"Переразобрано: {done}; пропущено (не черновик): {skipped}"
         )
+
+    def get_urls(self):
+        custom = [
+            path(
+                "<int:pk>/diff/",
+                self.admin_site.admin_view(redaction_diff_view),
+                name="documents_redaction_diff",
+            ),
+        ]
+        return custom + super().get_urls()
 
 
 @admin.register(Link)
