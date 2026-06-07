@@ -184,7 +184,7 @@ class Link(models.Model):
         null=True,
         blank=True,
         related_name="incoming_links",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
     )
     to_article = models.ForeignKey(
         Article,
