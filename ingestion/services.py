@@ -76,15 +76,23 @@ def create_draft_from_parsed(document, parsed, *, raw_source=None, redaction_dat
         redaction.parser_version = PARSER_VERSION
         redaction.raw_source = raw_source
         redaction.save()
+        order_to_article = {}
         for parsed_article in parsed.articles:
-            Article.objects.create(
+            parent = (
+                order_to_article.get(parsed_article.parent_order)
+                if parsed_article.parent_order is not None
+                else None
+            )
+            obj = Article.objects.create(
                 redaction=redaction,
-                kind=Article.Kind.ARTICLE,
+                kind=parsed_article.kind,
                 number=parsed_article.number,
                 title=parsed_article.title,
                 text=parsed_article.text,
                 order=parsed_article.order,
+                parent=parent,
             )
+            order_to_article[parsed_article.order] = obj
     return redaction
 
 

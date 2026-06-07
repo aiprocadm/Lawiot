@@ -213,3 +213,26 @@ def test_reparse_without_raw_raises():
     red = Redaction.objects.create(document=doc, redaction_date="2026-01-01", raw_source=None)
     with pytest.raises(ValueError):
         reparse_redaction(red)
+
+
+@pytest.mark.django_db
+def test_create_draft_persists_hierarchy():
+    from documents.models import Article, Document
+    from ingestion.parsing import parse_document
+    from ingestion.services import create_draft_from_parsed
+
+    html = (
+        "<html><body>"
+        "Закон о труде\nРаздел I. Общие положения\nГлава 1. Начала\n"
+        "Статья 1. Цели\nТекст статьи 1.\n"
+        "</body></html>"
+    ).encode()
+    doc = Document.objects.create(slug="hier-test", doc_type=Document.DocType.OTHER, title="t")
+    parsed = parse_document(html, "text/html")
+    redaction = create_draft_from_parsed(doc, parsed)
+    section = redaction.articles.get(kind=Article.Kind.SECTION, number="I")
+    chapter = redaction.articles.get(kind=Article.Kind.CHAPTER, number="1")
+    article = redaction.articles.get(kind=Article.Kind.ARTICLE, number="1")
+    assert chapter.parent_id == section.id
+    assert article.parent_id == chapter.id
+    assert article.anchor == "st-1"

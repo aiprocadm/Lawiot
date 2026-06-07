@@ -72,7 +72,7 @@ def parse_articles(text: str) -> list[ParsedArticle]:
 def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDocument:
     """Полный разбор: текст + список статей + заголовок-эвристика (первая нестатейная строка)."""
     text = html_to_text(content, content_type)
-    articles = parse_articles(text)
+    articles = parse_structure(text)
     title = ""
     for line in text.splitlines():
         if not ARTICLE_RE.match(line):
