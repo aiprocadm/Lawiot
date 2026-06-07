@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.urls import path
 
-from documents.admin_views import redaction_diff_view
+from documents.admin_views import redaction_diff_view, review_queue_view
 from documents.models import Article, Document, Link, Redaction
 from ingestion.services import (
     PublishedRedactionExists,
@@ -29,6 +29,7 @@ class DocumentAdmin(admin.ModelAdmin):
 class RedactionAdmin(admin.ModelAdmin):
     list_display = ("document", "redaction_date", "review_status", "is_current")
     list_filter = ("review_status", "is_current")
+    change_list_template = "admin/documents/redaction/change_list.html"
     inlines = [ArticleInline]
     actions = ["publish_selected", "reparse_from_raw"]
 
@@ -57,6 +58,11 @@ class RedactionAdmin(admin.ModelAdmin):
 
     def get_urls(self):
         custom = [
+            path(
+                "review-queue/",
+                self.admin_site.admin_view(review_queue_view),
+                name="documents_redaction_review_queue",
+            ),
             path(
                 "<int:pk>/diff/",
                 self.admin_site.admin_view(redaction_diff_view),

@@ -1,7 +1,9 @@
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from documents.models import Article, Document, Redaction
+from ingestion.models import IngestionJob
 from ingestion.services import import_manual
 
 
@@ -60,3 +62,15 @@ def test_publish_from_diff_publishes_and_indexes(staff_client, draft_with_raw):
     assert draft_with_raw.review_status == Redaction.ReviewStatus.PUBLISHED
     assert draft_with_raw.is_current is True
     assert draft_with_raw.search_vector is not None
+
+
+@pytest.mark.django_db
+def test_review_queue_lists_drafts_and_failures(staff_client, draft_with_raw):
+    IngestionJob.objects.create(
+        target_key="tk-fail", status=IngestionJob.Status.FAILED, started_at=timezone.now()
+    )
+    resp = staff_client.get(reverse("admin:documents_redaction_review_queue"))
+    body = resp.content.decode()
+    assert resp.status_code == 200
+    assert "197-ФЗ" in body          # черновик в очереди
+    assert "tk-fail" in body         # сбой приёма (карантин)

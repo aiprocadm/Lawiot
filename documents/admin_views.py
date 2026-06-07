@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from documents.diffing import diff_articles
 from documents.models import Redaction
+from ingestion.models import IngestionJob
 
 
 def redaction_diff_view(request, pk):
@@ -43,3 +44,25 @@ def _publish_from_diff(request, draft):
         draft.publish()
         messages.success(request, "Опубликовано.")
     return redirect("admin:documents_redaction_change", draft.pk)
+
+
+def review_queue_view(request):
+    drafts = (
+        Redaction.objects.filter(review_status=Redaction.ReviewStatus.DRAFT)
+        .select_related("document")
+        .order_by("-ingested_at")
+    )
+    failed = IngestionJob.objects.filter(
+        status=IngestionJob.Status.FAILED
+    ).order_by("-started_at")[:50]
+    context = {
+        **admin_site.each_context(request),
+        "title": "Очередь ревью",
+        "drafts": drafts,
+        "failed_jobs": failed,
+        "draft_count": drafts.count(),
+        "failed_count": IngestionJob.objects.filter(
+            status=IngestionJob.Status.FAILED
+        ).count(),
+    }
+    return render(request, "admin/documents/redaction/review_queue.html", context)

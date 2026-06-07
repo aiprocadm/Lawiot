@@ -1,0 +1,26 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Очередь ревью</h1>
+
+<h2>Черновики на проверку ({{ draft_count }})</h2>
+{% if drafts %}
+  <ul>
+    {% for r in drafts %}
+      <li>
+        <a href="{% url 'admin:documents_redaction_change' r.pk %}">{{ r.document }}</a>
+        — ред. от {{ r.redaction_date }}
+        · <a href="{% url 'admin:documents_redaction_diff' r.pk %}">diff</a>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}<p class="help">Черновиков нет.</p>{% endif %}
+
+<h2>Сбои приёма / карантин ({{ failed_count }})</h2>
+{% if failed_jobs %}
+  <ul>
+    {% for j in failed_jobs %}
+      <li>{{ j.target_key }} — {{ j.started_at }} — {{ j.error|default:"" }}</li>
+    {% endfor %}
+  </ul>
+{% else %}<p class="help">Сбоев нет.</p>{% endif %}
+{% endblock %}
