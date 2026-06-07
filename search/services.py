@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRank
 from django.db.models import F
+from django.utils.html import escape
+from django.utils.safestring import SafeString, mark_safe
 
 from documents.models import Article, Document, Redaction
 
@@ -15,9 +17,21 @@ class SearchResult:
     article_label: str | None = None
 
 
+# Сентинелы-маркеры подсветки: ts_headline вставит их в НЕэкранированный текст,
+# мы экранируем всё целиком, затем вернём <mark> только вокруг маркеров.
+_HL_START = "@@LAWIOT_HL_START@@"
+_HL_STOP = "@@LAWIOT_HL_STOP@@"
+
+
 def _headline(field, query):
     return SearchHeadline(
-        field, query, config="russian", start_sel="<mark>", stop_sel="</mark>"
+        field, query, config="russian", start_sel=_HL_START, stop_sel=_HL_STOP
+    )
+
+
+def _safe_snippet(raw) -> SafeString:
+    return mark_safe(
+        escape(raw or "").replace(_HL_START, "<mark>").replace(_HL_STOP, "</mark>")
     )
 
 
@@ -77,7 +91,7 @@ def search_documents(
         existing = best.get(r.document_id)
         if existing is None or r.rank > existing.rank:
             best[r.document_id] = SearchResult(
-                document=r.document, rank=r.rank, snippet=r.snippet
+                document=r.document, rank=r.rank, snippet=_safe_snippet(r.snippet)
             )
     for a in article_hits:
         doc = a.redaction.document
@@ -86,7 +100,7 @@ def search_documents(
             best[doc.id] = SearchResult(
                 document=doc,
                 rank=a.rank,
-                snippet=a.snippet,
+                snippet=_safe_snippet(a.snippet),
                 article_anchor=a.anchor,
                 article_label=f"{a.get_kind_display()} {a.number}",
             )

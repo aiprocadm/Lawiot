@@ -90,3 +90,18 @@ def test_filters_by_status_and_issuing_body():
 
     by_body = search_documents("статусслово", issuing_body="минтруд")
     assert {r.document for r in by_body} == {active}
+
+
+@pytest.mark.django_db
+def test_search_snippet_escapes_html_keeps_mark():
+    doc = make_document(slug="xss", title="Док")
+    # Внешний текст с HTML-спецсимволами и тегом-инъекцией: сниппет должен быть
+    # экранирован, а подсветка <mark> — сохранена (защита от stored-XSS).
+    make_redaction(
+        doc, full_text="Договор «А & Б» <script>alert(1)</script> про налог тут."
+    ).publish()
+    [result] = search_documents("налог")
+    snippet = str(result.snippet)
+    assert "<script>" not in snippet           # исполняемый тег не проходит
+    assert "&amp;" in snippet                   # спецсимвол «&» экранирован
+    assert "<mark>налог</mark>" in snippet       # подсветка совпадения сохранена

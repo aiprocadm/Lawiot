@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Diff черновика «{{ draft }}»</h1>
+
+{% if date_looks_placeholder %}
+  <p class="errornote">Дата «Действует с» совпадает с датой приёма — проверьте её перед публикацией.</p>
+{% endif %}
+
+{% if not current %}
+  <p class="help">Текущей опубликованной редакции нет — это будет первая публикация, сравнивать не с чем.</p>
+{% else %}
+  <p class="help">Сравнение с текущей редакцией от {{ current.redaction_date }}.</p>
+{% endif %}
+
+{% for d in diffs %}
+  <div class="diff-article diff-{{ d.status }}">
+    <h3>Статья {{ d.number }} — <span class="status">{{ d.status }}</span></h3>
+    {% if d.lines %}
+      <pre>{% for tag, text in d.lines %}<span class="line {% if tag == '+' %}line-add{% elif tag == '-' %}line-del{% else %}line-ctx{% endif %}">{{ tag }} {{ text }}</span>
+{% endfor %}</pre>
+    {% endif %}
+  </div>
+{% endfor %}
+
+<form method="post">{% csrf_token %}
+  <button type="submit" class="default">Опубликовать эту редакцию</button>
+</form>
+
+<style>
+  .diff-changed .status { color: #b8860b; }
+  .diff-added   .status { color: #2e7d32; }
+  .diff-removed .status { color: #c62828; }
+  .line-add { background: #e6ffed; }
+  .line-del { background: #ffeef0; }
+</style>
+{% endblock %}
