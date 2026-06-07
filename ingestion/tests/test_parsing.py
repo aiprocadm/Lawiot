@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import ingestion
-from ingestion.parsing import html_to_text, parse_articles, parse_document, parse_structure
+from ingestion.parsing import detect_title, html_to_text, parse_articles, parse_document, parse_structure
 
 FIXTURES = Path(ingestion.__file__).parent / "fixtures_raw"
 
@@ -94,3 +94,24 @@ def test_parse_structure_flat_act_only_articles():
     nodes = parse_structure(flat)
     assert [n.kind for n in nodes] == ["article", "article"]
     assert all(n.parent_order is None for n in nodes)
+
+
+def test_detect_title_prefers_act_keyword_line():
+    text = (
+        "Главная\nПоиск\nОфициальный интернет-портал\n"
+        "Трудовой кодекс Российской Федерации\n"
+        "Раздел I. Общие положения\nСтатья 1. Цели"
+    )
+    assert detect_title(text) == "Трудовой кодекс Российской Федерации"
+
+
+def test_detect_title_falls_back_to_first_meaningful_line():
+    text = "Некий акт без ключевых слов\nСтатья 1. Что-то"
+    assert detect_title(text) == "Некий акт без ключевых слов"
+
+
+def test_parse_document_extracts_requisite_hints():
+    html = "Федеральный закон от 30.12.2001 N 197-ФЗ\nСтатья 1. Цели".encode()
+    parsed = parse_document(html, "text/html")
+    assert parsed.detected_number == "197-ФЗ"
+    assert parsed.detected_date == "30.12.2001"

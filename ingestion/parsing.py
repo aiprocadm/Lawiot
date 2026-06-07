@@ -12,6 +12,14 @@ SECTION_RE = re.compile(r"^Раздел\s+([IVXLCDM]+)\.?\s*(.*)$")
 # Глава арабской цифрой: «Глава 1. Основные начала» / «Глава 12.1. …»
 CHAPTER_RE = re.compile(r"^Глава\s+(\d+(?:\.\d+)?)\.?\s*(.*)$")
 
+# Реквизиты НПА: номер вида «197-ФЗ» / «1-ФКЗ» и дата «ДД.ММ.ГГГГ»
+NUMBER_HINT_RE = re.compile(r"\b(\d{1,4}-(?:ФЗ|ФКЗ))\b")
+DATE_HINT_RE = re.compile(r"\b(\d{2}\.\d{2}\.\d{4})\b")
+
+# Ключевые слова в наименовании НПА — приоритетные кандидаты в заголовок.
+TITLE_KEYWORDS = ("кодекс", "федеральный закон", "постановление", "приказ", "закон")
+_TITLE_SKIP = {"главная", "поиск", "официальный интернет-портал"}
+
 
 @dataclass
 class ParsedArticle:
@@ -28,6 +36,8 @@ class ParsedDocument:
     full_text: str
     title: str = ""
     articles: list[ParsedArticle] = field(default_factory=list)
+    detected_number: str = ""
+    detected_date: str = ""
 
 
 def html_to_text(content: bytes, content_type: str = "text/html") -> str:
@@ -69,16 +79,38 @@ def parse_articles(text: str) -> list[ParsedArticle]:
     return articles
 
 
+def detect_title(text: str) -> str:
+    """Заголовок акта: первая строка с ключевым словом НПА; иначе — первая
+    осмысленная нестатейная строка (не навигация, длиннее 10 символов)."""
+    candidates = [
+        line for line in text.splitlines()
+        if line and not ARTICLE_RE.match(line)
+        and not SECTION_RE.match(line) and not CHAPTER_RE.match(line)
+    ]
+    for line in candidates:
+        low = line.lower()
+        if any(k in low for k in TITLE_KEYWORDS):
+            return line
+    for line in candidates:
+        if len(line) > 10 and line.lower() not in _TITLE_SKIP:
+            return line
+    return candidates[0] if candidates else ""
+
+
 def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDocument:
-    """Полный разбор: текст + список статей + заголовок-эвристика (первая нестатейная строка)."""
+    """Полный разбор: текст + список статей + заголовок-эвристика + реквизиты."""
     text = html_to_text(content, content_type)
     articles = parse_structure(text)
-    title = ""
-    for line in text.splitlines():
-        if not ARTICLE_RE.match(line):
-            title = line
-            break
-    return ParsedDocument(full_text=text, title=title, articles=articles)
+    title = detect_title(text)
+    num = NUMBER_HINT_RE.search(text)
+    dt = DATE_HINT_RE.search(text)
+    return ParsedDocument(
+        full_text=text,
+        title=title,
+        articles=articles,
+        detected_number=num.group(1) if num else "",
+        detected_date=dt.group(1) if dt else "",
+    )
 
 
 def parse_structure(text: str) -> list[ParsedArticle]:
