@@ -79,15 +79,16 @@ def test_extract_links_command_processes_current_redactions():
     assert Link.objects.filter(from_document=src, status=Link.Status.SUGGESTED).exists()
 
 
-def test_capture_fixture_writes_file(tmp_path):
-    import httpx
-
-    def handler(request):
-        return httpx.Response(
-            200, content=b"<html>hi</html>", headers={"content-type": "text/html"}
+def test_capture_fixture_writes_file(tmp_path, monkeypatch):
+    def fake_fetch(url):
+        return FetchResult(
+            content=b"<html>hi</html>",
+            content_type="text/html",
+            source_url=url,
+            fetched_at=datetime.now(timezone.utc),
         )
 
-    client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr("ingestion.management.commands.capture_fixture.fetch", fake_fetch)
     out = tmp_path / "sample.html"
-    call_command("capture_fixture", "https://example.test/act", str(out), client=client)
+    call_command("capture_fixture", "https://example.test/act", str(out))
     assert out.read_bytes() == b"<html>hi</html>"
