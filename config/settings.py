@@ -81,6 +81,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Forward-compat для Django 6.0: модельные URLField по умолчанию будут
+# подставлять схему 'https' вместо 'http'. Включаем новое поведение заранее,
+# чтобы убрать RemovedInDjango60Warning (наши source_url — внешние https-ссылки).
+FORMS_URLFIELD_ASSUME_HTTPS = True
+
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "document_list"
 LOGOUT_REDIRECT_URL = "login"
