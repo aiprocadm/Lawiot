@@ -1,7 +1,10 @@
 import pytest
 from django.contrib.postgres.search import SearchQuery, SearchVectorField
+from django.core.management import call_command
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
-from documents.models import Article, Redaction
+from documents.models import Article, Document, Redaction
 from documents.tests.factories import make_article, make_document, make_redaction
 
 
@@ -59,3 +62,50 @@ def test_reindex_search_backfills_vectors():
     call_command("reindex_search")
 
     assert _matches(Redaction.objects.filter(pk=red.pk), "особоеслово")
+
+
+@pytest.mark.django_db
+def test_bulk_reindex_matches_update_search_index():
+    doc = Document.objects.create(doc_type="federal_law", title="Налоговый кодекс", official_number="1-ФЗ", slug="1-fz")
+    red = Redaction.objects.create(
+        document=doc, redaction_date="2026-01-01", is_current=True,
+        review_status=Redaction.ReviewStatus.PUBLISHED, full_text="налог и сбор",
+    )
+    Article.objects.create(redaction=red, number="1", title="Общие", text="ставка налога", order=0)
+    red.update_search_index()                       # эталон (ORM-путь публикации)
+    red.refresh_from_db()
+    expected_red = red.search_vector
+    expected_art = Article.objects.get(redaction=red, number="1").search_vector
+
+    Redaction.objects.filter(pk=red.pk).update(search_vector=None)
+    Article.objects.filter(redaction=red).update(search_vector=None)
+    call_command("reindex_search")                  # bulk-путь
+    red.refresh_from_db()
+    assert red.search_vector == expected_red        # паритет: тот же вектор
+    assert Article.objects.get(redaction=red, number="1").search_vector == expected_art
+
+
+@pytest.mark.django_db
+def test_bulk_reindex_skips_drafts():
+    doc = Document.objects.create(doc_type="federal_law", title="Док", official_number="2-ФЗ", slug="2-fz")
+    draft = Redaction.objects.create(
+        document=doc, redaction_date="2026-01-01",
+        review_status=Redaction.ReviewStatus.DRAFT, full_text="черновик налог",
+    )
+    call_command("reindex_search")
+    draft.refresh_from_db()
+    assert draft.search_vector is None              # черновики не индексируем
+
+
+@pytest.mark.django_db
+def test_bulk_reindex_uses_constant_queries():
+    doc = Document.objects.create(doc_type="federal_law", title="Док", official_number="3-ФЗ", slug="3-fz")
+    for i in range(5):
+        Redaction.objects.create(
+            document=doc, redaction_date=f"2020-01-0{i+1}",
+            review_status=Redaction.ReviewStatus.PUBLISHED, full_text=f"налог {i}",
+        )
+    with CaptureQueriesContext(connection) as ctx:
+        call_command("reindex_search")
+    updates = [q for q in ctx.captured_queries if q["sql"].lstrip().upper().startswith("UPDATE")]
+    assert len(updates) == 2          # 5 редакций → всё ещё 2 UPDATE (не 2N)
