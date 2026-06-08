@@ -115,3 +115,12 @@ def test_parse_document_extracts_requisite_hints():
     parsed = parse_document(html, "text/html")
     assert parsed.detected_number == "197-ФЗ"
     assert parsed.detected_date == "30.12.2001"
+
+
+def test_parse_structure_uppercase_headers():
+    text = "РАЗДЕЛ I. ОБЩИЕ ПОЛОЖЕНИЯ\nГЛАВА 1. НАЧАЛА\nСтатья 1. Цели\nТекст статьи."
+    nodes = parse_structure(text)
+    kinds = [(n.kind, n.number) for n in nodes]
+    assert ("section", "I") in kinds
+    assert ("chapter", "1") in kinds
+    assert ("article", "1") in kinds
