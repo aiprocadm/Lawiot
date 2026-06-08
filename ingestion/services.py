@@ -76,15 +76,23 @@ def create_draft_from_parsed(document, parsed, *, raw_source=None, redaction_dat
         redaction.parser_version = PARSER_VERSION
         redaction.raw_source = raw_source
         redaction.save()
+        order_to_article = {}
         for parsed_article in parsed.articles:
-            Article.objects.create(
+            parent = (
+                order_to_article.get(parsed_article.parent_order)
+                if parsed_article.parent_order is not None
+                else None
+            )
+            obj = Article.objects.create(
                 redaction=redaction,
-                kind=Article.Kind.ARTICLE,
+                kind=parsed_article.kind,
                 number=parsed_article.number,
                 title=parsed_article.title,
                 text=parsed_article.text,
                 order=parsed_article.order,
+                parent=parent,
             )
+            order_to_article[parsed_article.order] = obj
     return redaction
 
 
@@ -119,7 +127,10 @@ def ingest_target(target, *, client=None):
         )
         job.raw_source = raw
         parsed = parse_document(result.content, result.content_type)
-        log_lines.append(f"Разобрано статей: {len(parsed.articles)}.")
+        n_articles = sum(1 for a in parsed.articles if a.kind == "article")
+        log_lines.append(
+            f"Разобрано узлов структуры: {len(parsed.articles)} (статей: {n_articles})."
+        )
         redaction = create_draft_from_parsed(target.document, parsed, raw_source=raw)
         job.produced_redaction = redaction
         job.status = IngestionJob.Status.SUCCESS

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import ingestion
-from ingestion.parsing import html_to_text, parse_articles, parse_document
+from ingestion.parsing import detect_title, html_to_text, parse_articles, parse_document, parse_structure
 
 FIXTURES = Path(ingestion.__file__).parent / "fixtures_raw"
 
@@ -51,3 +51,76 @@ def test_parse_document_accepts_plain_text():
     parsed = parse_document(content, "text/plain")
     assert [a.number for a in parsed.articles] == ["1"]
     assert parsed.articles[0].text == "Настоящий акт регулирует отношения."
+
+
+SYNTHETIC = """Трудовой кодекс Российской Федерации
+Раздел I. Общие положения
+Глава 1. Основные начала трудового законодательства
+Статья 1. Цели и задачи трудового законодательства
+Целями трудового законодательства являются...
+Статья 2. Основные принципы
+Текст статьи два.
+Раздел II. Социальное партнёрство
+Глава 2. Общие понятия
+Статья 23. Понятие социального партнёрства
+Текст статьи 23."""
+
+
+def test_parse_structure_detects_sections_and_chapters():
+    nodes = parse_structure(SYNTHETIC)
+    kinds = [(n.kind, n.number) for n in nodes]
+    assert ("section", "I") in kinds
+    assert ("section", "II") in kinds
+    assert ("chapter", "1") in kinds
+    assert ("chapter", "2") in kinds
+    assert ("article", "1") in kinds
+    assert ("article", "23") in kinds
+
+
+def test_parse_structure_parent_links_and_text():
+    nodes = parse_structure(SYNTHETIC)
+    by_order = {n.order: n for n in nodes}
+    chapter1 = next(n for n in nodes if n.kind == "chapter" and n.number == "1")
+    section1 = next(n for n in nodes if n.kind == "section" and n.number == "I")
+    article1 = next(n for n in nodes if n.kind == "article" and n.number == "1")
+    assert by_order[chapter1.parent_order] is section1
+    assert by_order[article1.parent_order] is chapter1
+    assert "Целями трудового законодательства" in article1.text
+    assert "Статья 2" not in article1.text
+
+
+def test_parse_structure_flat_act_only_articles():
+    flat = "Преамбула акта\nСтатья 1. Первая\nТекст.\nСтатья 2. Вторая\nЕщё текст."
+    nodes = parse_structure(flat)
+    assert [n.kind for n in nodes] == ["article", "article"]
+    assert all(n.parent_order is None for n in nodes)
+
+
+def test_detect_title_prefers_act_keyword_line():
+    text = (
+        "Главная\nПоиск\nОфициальный интернет-портал\n"
+        "Трудовой кодекс Российской Федерации\n"
+        "Раздел I. Общие положения\nСтатья 1. Цели"
+    )
+    assert detect_title(text) == "Трудовой кодекс Российской Федерации"
+
+
+def test_detect_title_falls_back_to_first_meaningful_line():
+    text = "Некий акт без ключевых слов\nСтатья 1. Что-то"
+    assert detect_title(text) == "Некий акт без ключевых слов"
+
+
+def test_parse_document_extracts_requisite_hints():
+    html = "Федеральный закон от 30.12.2001 N 197-ФЗ\nСтатья 1. Цели".encode()
+    parsed = parse_document(html, "text/html")
+    assert parsed.detected_number == "197-ФЗ"
+    assert parsed.detected_date == "30.12.2001"
+
+
+def test_parse_structure_uppercase_headers():
+    text = "РАЗДЕЛ I. ОБЩИЕ ПОЛОЖЕНИЯ\nГЛАВА 1. НАЧАЛА\nСтатья 1. Цели\nТекст статьи."
+    nodes = parse_structure(text)
+    kinds = [(n.kind, n.number) for n in nodes]
+    assert ("section", "I") in kinds
+    assert ("chapter", "1") in kinds
+    assert ("article", "1") in kinds

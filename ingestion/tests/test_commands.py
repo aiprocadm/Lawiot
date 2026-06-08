@@ -77,3 +77,18 @@ def test_extract_links_command_processes_current_redactions():
     red.publish()  # становится текущей
     call_command("extract_links")
     assert Link.objects.filter(from_document=src, status=Link.Status.SUGGESTED).exists()
+
+
+def test_capture_fixture_writes_file(tmp_path, monkeypatch):
+    def fake_fetch(url):
+        return FetchResult(
+            content=b"<html>hi</html>",
+            content_type="text/html",
+            source_url=url,
+            fetched_at=datetime.now(timezone.utc),
+        )
+
+    monkeypatch.setattr("ingestion.management.commands.capture_fixture.fetch", fake_fetch)
+    out = tmp_path / "sample.html"
+    call_command("capture_fixture", "https://example.test/act", str(out))
+    assert out.read_bytes() == b"<html>hi</html>"
