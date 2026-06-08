@@ -127,7 +127,10 @@ def ingest_target(target, *, client=None):
         )
         job.raw_source = raw
         parsed = parse_document(result.content, result.content_type)
-        log_lines.append(f"Разобрано статей: {len(parsed.articles)}.")
+        n_articles = sum(1 for a in parsed.articles if a.kind == "article")
+        log_lines.append(
+            f"Разобрано узлов структуры: {len(parsed.articles)} (статей: {n_articles})."
+        )
         redaction = create_draft_from_parsed(target.document, parsed, raw_source=raw)
         job.produced_redaction = redaction
         job.status = IngestionJob.Status.SUCCESS
