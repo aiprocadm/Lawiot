@@ -10,8 +10,12 @@ SEED_ACTS = [
         "official_number": "197-ФЗ",
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
-        "source_url": "",      # заполнить рабочим URL официального источника
-        "auto_ingest": False,  # включить после успешной приёмки
+        # ИПС «Законодательство России» (pravo.gov.ru). Эндпоинт doc_itself отдаёт
+        # ПОЛНЫЙ консолидированный текст (базовый ?docbody= — лишь селектор редакций).
+        # Кодировка windows-1251; детали в
+        # docs/superpowers/notes/2026-06-08-real-fixtures-characterization.md
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102074279&page=1&rdk=0",
+        "auto_ingest": False,  # включить после успешной приёмки (Фаза 5)
     },
     # Кандидаты подзаконки трудового права (реквизиты/URL уточняются по официальному
     # источнику pravo.gov.ru, НЕ по коммерческим СПС). Добавлять по одному после
