@@ -3,6 +3,7 @@ from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import F, Q, Value
+from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -58,6 +59,11 @@ class Redaction(models.Model):
         max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.DRAFT
     )
     is_current = models.BooleanField(default=False)
+    published_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Когда редакция опубликована в системе (ставится publish()).",
+    )
     ingested_at = models.DateTimeField(null=True, blank=True)
     parser_version = models.CharField(max_length=50, blank=True)
     raw_source = models.ForeignKey(
@@ -95,7 +101,8 @@ class Redaction(models.Model):
             ).exclude(pk=self.pk).update(is_current=False)
             self.review_status = self.ReviewStatus.PUBLISHED
             self.is_current = True
-            self.save(update_fields=["review_status", "is_current"])
+            self.published_at = timezone.now()
+            self.save(update_fields=["review_status", "is_current", "published_at"])
             self.update_search_index()
 
     def update_search_index(self):
