@@ -20,20 +20,7 @@
   <button type="submit">Найти</button>
 </form>
 
-{% if query %}
-<p>Найдено: {{ results|length }} по запросу «{{ query }}».</p>
-{% for r in results %}
-<article>
-  <h3>
-    <a href="{% url 'document_detail' r.document.slug %}{% if r.article_anchor %}#{{ r.article_anchor }}{% endif %}">
-      {{ r.document.title }}{% if r.article_label %} — {{ r.article_label }}{% endif %}
-    </a>
-  </h3>
-  <small>{{ r.document.get_doc_type_display }} № {{ r.document.official_number }} · {{ r.document.get_status_display }}</small>
-  <p>{{ r.snippet|safe }}</p>
-</article>
-{% empty %}
-<p>Ничего не найдено.</p>
-{% endfor %}
-{% endif %}
+<div id="search-results">
+  {% include "search/_results.html" %}
+</div>
 {% endblock %}
