@@ -54,9 +54,7 @@ def test_content_changed_detects_new_then_same():
 @pytest.mark.django_db
 def test_create_draft_creates_articles_with_anchors():
     doc = make_document(slug="d1", official_number="1")
-    parsed = parse_document(
-        "Статья 81. Расторжение\nтекст статьи".encode("utf-8"), "text/plain"
-    )
+    parsed = parse_document("Статья 81. Расторжение\nтекст статьи".encode("utf-8"), "text/plain")
     red = create_draft_from_parsed(doc, parsed, redaction_date=date(2024, 1, 1))
     assert red.review_status == Redaction.ReviewStatus.DRAFT
     assert red.is_current is False
@@ -72,9 +70,9 @@ def test_create_draft_is_idempotent_on_same_date():
     parsed = parse_document("Статья 1. A\nx".encode("utf-8"), "text/plain")
     r1 = create_draft_from_parsed(doc, parsed, redaction_date=date(2024, 1, 1))
     r2 = create_draft_from_parsed(doc, parsed, redaction_date=date(2024, 1, 1))
-    assert r1.pk == r2.pk                       # та же редакция (upsert)
+    assert r1.pk == r2.pk  # та же редакция (upsert)
     assert Redaction.objects.filter(document=doc).count() == 1
-    assert r2.articles.count() == 1             # статьи не задублировались
+    assert r2.articles.count() == 1  # статьи не задублировались
 
 
 @pytest.mark.django_db
@@ -86,7 +84,7 @@ def test_create_draft_never_overwrites_published():
     with pytest.raises(PublishedRedactionExists):
         create_draft_from_parsed(doc, parsed, redaction_date=date(2024, 1, 1))
     published.refresh_from_db()
-    assert published.full_text == "старое"      # не перезаписано
+    assert published.full_text == "старое"  # не перезаписано
 
 
 @pytest.mark.django_db
@@ -111,7 +109,7 @@ def test_ingest_target_skips_unchanged_on_second_run():
     second = ingest_target(target, client=_client_returning(HTML))
     assert first.status == IngestionJob.Status.SUCCESS
     assert second.status == IngestionJob.Status.SKIPPED
-    assert RawSource.objects.filter(target_key="tk2").count() == 1   # дубль не сохранён
+    assert RawSource.objects.filter(target_key="tk2").count() == 1  # дубль не сохранён
     assert Redaction.objects.filter(document=doc).count() == 1
 
 
@@ -126,7 +124,7 @@ def test_ingest_target_quarantines_on_fetch_error():
     job = ingest_target(target, client=httpx.Client(transport=httpx.MockTransport(handler)))
     assert job.status == IngestionJob.Status.FAILED
     assert "HTTPStatusError" in job.error
-    assert Redaction.objects.filter(document=doc).count() == 0       # ничего не создано
+    assert Redaction.objects.filter(document=doc).count() == 0  # ничего не создано
 
 
 @pytest.mark.django_db
@@ -182,34 +180,42 @@ def test_import_manual_extracts_suggested_links():
 
 @pytest.mark.django_db
 def test_reparse_restores_articles_from_raw():
-    doc = Document.objects.create(doc_type="federal_law", title="Тест", official_number="1-ФЗ", slug="1-fz")
+    doc = Document.objects.create(
+        doc_type="federal_law", title="Тест", official_number="1-ФЗ", slug="1-fz"
+    )
     red = import_manual(doc, content="Статья 1. Первая.\nСтатья 2. Вторая.".encode("utf-8"))
     assert red.articles.count() == 2
-    red.articles.filter(number="2").delete()       # «потеряли» статью
+    red.articles.filter(number="2").delete()  # «потеряли» статью
     assert red.articles.count() == 1
-    reparse_redaction(red)                          # переразбор из того же RawSource
+    reparse_redaction(red)  # переразбор из того же RawSource
     red.refresh_from_db()
-    assert red.articles.count() == 2                # восстановлено
+    assert red.articles.count() == 2  # восстановлено
 
 
 @pytest.mark.django_db
 def test_reparse_zero_articles_does_not_wipe():
-    doc = Document.objects.create(doc_type="federal_law", title="Тест", official_number="2-ФЗ", slug="2-fz")
+    doc = Document.objects.create(
+        doc_type="federal_law", title="Тест", official_number="2-ФЗ", slug="2-fz"
+    )
     raw = RawSource.objects.create(
-        target_key="manual:2-fz", content="Текст без статей".encode("utf-8"),
-        content_hash="x", content_type="text/plain",
+        target_key="manual:2-fz",
+        content="Текст без статей".encode("utf-8"),
+        content_hash="x",
+        content_type="text/plain",
     )
     red = Redaction.objects.create(document=doc, redaction_date="2026-01-01", raw_source=raw)
     Article.objects.create(redaction=red, number="1", text="была статья", order=0)
     with pytest.raises(ReparseYieldedNothing):
         reparse_redaction(red)
     red.refresh_from_db()
-    assert red.articles.count() == 1                # не затёрли
+    assert red.articles.count() == 1  # не затёрли
 
 
 @pytest.mark.django_db
 def test_reparse_without_raw_raises():
-    doc = Document.objects.create(doc_type="federal_law", title="Тест", official_number="3-ФЗ", slug="3-fz")
+    doc = Document.objects.create(
+        doc_type="federal_law", title="Тест", official_number="3-ФЗ", slug="3-fz"
+    )
     red = Redaction.objects.create(document=doc, redaction_date="2026-01-01", raw_source=None)
     with pytest.raises(ValueError):
         reparse_redaction(red)

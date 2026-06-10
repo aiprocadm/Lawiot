@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0006_redaction_raw_source'),
+        ("documents", "0006_redaction_raw_source"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='document',
-            name='auto_ingest',
-            field=models.BooleanField(default=False, help_text='Включить периодический авто-приём из source_url по расписанию.'),
+            model_name="document",
+            name="auto_ingest",
+            field=models.BooleanField(
+                default=False,
+                help_text="Включить периодический авто-приём из source_url по расписанию.",
+            ),
         ),
     ]

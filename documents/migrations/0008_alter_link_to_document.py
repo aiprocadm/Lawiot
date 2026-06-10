@@ -5,15 +5,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0007_document_auto_ingest'),
+        ("documents", "0007_document_auto_ingest"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='link',
-            name='to_document',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='incoming_links', to='documents.document'),
+            model_name="link",
+            name="to_document",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="incoming_links",
+                to="documents.document",
+            ),
         ),
     ]

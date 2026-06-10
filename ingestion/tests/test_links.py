@@ -61,9 +61,7 @@ def test_distinct_numbers_with_substring_are_not_merged():
     src = make_document(slug="sub", official_number="197-ФЗ")
     red = make_redaction(src, full_text="Применяются 125-ФЗ и 25-ФЗ одновременно.")
     extract_links_for_redaction(red)
-    raws = set(
-        Link.objects.filter(from_document=src).values_list("raw_citation", flat=True)
-    )
+    raws = set(Link.objects.filter(from_document=src).values_list("raw_citation", flat=True))
     assert raws == {"125-ФЗ", "25-ФЗ"}
 
 
@@ -102,11 +100,13 @@ def test_reextraction_preserves_and_does_not_duplicate_confirmed():
     red = make_redaction(src, full_text="Ссылка на 125-ФЗ.")
     # куратор уже подтвердил связь
     Link.objects.create(
-        from_document=src, to_document=target,
+        from_document=src,
+        to_document=target,
         link_type=Link.LinkType.REFERENCES,
-        origin=Link.Origin.AUTO, status=Link.Status.CONFIRMED,
+        origin=Link.Origin.AUTO,
+        status=Link.Status.CONFIRMED,
     )
     extract_links_for_redaction(red)
     links = Link.objects.filter(from_document=src, to_document=target)
-    assert links.count() == 1                       # дубль не создан
+    assert links.count() == 1  # дубль не создан
     assert links.first().status == Link.Status.CONFIRMED  # подтверждение сохранено

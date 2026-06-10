@@ -20,7 +20,8 @@ class Command(BaseCommand):
             },
         )
         redaction, created = Redaction.objects.get_or_create(
-            document=doc, redaction_date=date(2024, 1, 1),
+            document=doc,
+            redaction_date=date(2024, 1, 1),
             defaults={"full_text": "Демонстрационная редакция."},
         )
         if created:

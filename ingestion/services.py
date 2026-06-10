@@ -42,9 +42,7 @@ def store_raw_source(target_key, content, content_type="", source_url=""):
 
 def content_changed(target_key, content_hash):
     """True, если для цели ещё нет сырья или хэш отличается от последнего."""
-    latest = (
-        RawSource.objects.filter(target_key=target_key).order_by("-fetched_at").first()
-    )
+    latest = RawSource.objects.filter(target_key=target_key).order_by("-fetched_at").first()
     return latest is None or latest.content_hash != content_hash
 
 
@@ -147,7 +145,9 @@ def ingest_target(target, *, client=None):
     return _finish(job, log_lines)
 
 
-def import_manual(document, *, content, content_type="text/plain", source_url="", redaction_date=None):
+def import_manual(
+    document, *, content, content_type="text/plain", source_url="", redaction_date=None
+):
     """Запасной путь: куратор подаёт байты/текст напрямую → черновик редакции + предложенные связи."""
     raw = store_raw_source(f"manual:{document.slug}", content, content_type, source_url)
     parsed = parse_document(content, content_type)
@@ -156,7 +156,9 @@ def import_manual(document, *, content, content_type="text/plain", source_url=""
     )
     try:
         extract_links_for_redaction(redaction)
-    except Exception:  # извлечение связей вторично: черновик сохранён, связи можно переизвлечь командой
+    except (
+        Exception
+    ):  # извлечение связей вторично: черновик сохранён, связи можно переизвлечь командой
         pass
     return redaction
 

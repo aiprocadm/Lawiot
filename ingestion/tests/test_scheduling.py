@@ -21,9 +21,7 @@ def _router(handler_by_path):
 
 @pytest.mark.django_db
 def test_iter_targets_selects_only_flagged_docs_with_source_url():
-    make_document(
-        slug="a", official_number="1", auto_ingest=True, source_url="https://e.test/a"
-    )
+    make_document(slug="a", official_number="1", auto_ingest=True, source_url="https://e.test/a")
     make_document(  # flagged but no URL → excluded
         slug="b", official_number="2", auto_ingest=True, source_url=""
     )
@@ -40,9 +38,7 @@ def test_iter_targets_selects_only_flagged_docs_with_source_url():
 
 @pytest.mark.django_db
 def test_sweep_creates_drafts_isolates_failures_and_counts():
-    make_document(
-        slug="ok", official_number="1", auto_ingest=True, source_url="https://e.test/ok"
-    )
+    make_document(slug="ok", official_number="1", auto_ingest=True, source_url="https://e.test/ok")
     make_document(
         slug="bad", official_number="2", auto_ingest=True, source_url="https://e.test/bad"
     )
@@ -59,18 +55,14 @@ def test_sweep_creates_drafts_isolates_failures_and_counts():
     assert summary.success == 1
     assert summary.failed == 1
     assert summary.skipped == 0
-    assert Redaction.objects.filter(document__slug="ok").count() == 1   # черновик создан
+    assert Redaction.objects.filter(document__slug="ok").count() == 1  # черновик создан
     assert Redaction.objects.filter(document__slug="bad").count() == 0  # сбой изолирован
 
 
 @pytest.mark.django_db
 def test_sweep_skips_unchanged_on_second_run():
-    make_document(
-        slug="ok", official_number="1", auto_ingest=True, source_url="https://e.test/ok"
-    )
-    ok = {"/ok": lambda r: httpx.Response(
-        200, headers={"content-type": "text/html"}, content=HTML
-    )}
+    make_document(slug="ok", official_number="1", auto_ingest=True, source_url="https://e.test/ok")
+    ok = {"/ok": lambda r: httpx.Response(200, headers={"content-type": "text/html"}, content=HTML)}
     first = sweep_targets(client=_router(ok))
     second = sweep_targets(client=_router(ok))
     assert first.success == 1

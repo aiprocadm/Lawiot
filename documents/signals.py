@@ -1,6 +1,7 @@
 """Сохранение смысла входящих связей при удалении документа-цели.
 До обнуления to_document (SET_NULL) переносим номер цели в raw_citation,
 чтобы ссылка деградировала во «вне корпуса», а не теряла информацию."""
+
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 

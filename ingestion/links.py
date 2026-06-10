@@ -10,7 +10,7 @@ CONTEXT_WINDOW = 60
 
 @dataclass(frozen=True)
 class Citation:
-    number: str   # «197-ФЗ»
+    number: str  # «197-ФЗ»
     context: str  # очищенный фрагмент текста вокруг цитаты
 
 

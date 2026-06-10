@@ -11,9 +11,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--slug", required=True, help="slug существующего документа")
         parser.add_argument("--url", required=True, help="URL официального источника")
-        parser.add_argument(
-            "--key", default="", help="target_key (по умолчанию совпадает со slug)"
-        )
+        parser.add_argument("--key", default="", help="target_key (по умолчанию совпадает со slug)")
 
     def handle(self, *args, **options):
         try:
