@@ -143,8 +143,8 @@ def test_detail_splits_amendments_and_references(auth_client):
     response = auth_client.get(reverse("document_detail", args=["split"]))
     amendments = response.context["amendments"]
     references = response.context["references"]
-    assert all(l.link_type in ("amends", "amended_by") for l in amendments)
-    assert all(l.link_type == "references" for l in references)
+    assert all(link.link_type in ("amends", "amended_by") for link in amendments)
+    assert all(link.link_type == "references" for link in references)
     assert len(amendments) == 2
     assert len(references) == 1
 
