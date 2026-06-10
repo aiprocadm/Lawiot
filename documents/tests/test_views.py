@@ -137,3 +137,40 @@ def test_diff_shows_changed_article_lines(auth_client):
     assert "Новый текст статьи." in content   # строка со знаком +
     assert "Старый текст статьи." in content  # строка со знаком −
     assert "изменена" in content
+
+
+@pytest.mark.django_db
+def test_diff_added_removed_and_same_articles(auth_client):
+    doc = make_document(slug="diff-ars", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    make_article(old, number="1", title="Без изменений", text="Стабильный текст.", order=1)
+    make_article(old, number="2", title="Будет удалена", text="Текст удаляемой.", order=2)
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    make_article(new, number="1", title="Без изменений", text="Стабильный текст.", order=1)
+    make_article(new, number="3", title="Новая статья", text="Текст новой.", order=2)
+    new.publish()
+
+    response = auth_client.get(reverse("redaction_diff", args=["diff-ars", old.pk]))
+    content = response.content.decode()
+    assert "Статья 3" in content and "добавлена" in content
+    assert "Статья 2" in content and "удалена" in content
+    # неизменённая статья не показывается
+    assert "Статья 1" not in content
+    assert "Стабильный текст." not in content
+
+
+@pytest.mark.django_db
+def test_diff_no_changes_message(auth_client):
+    doc = make_document(slug="diff-same", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    make_article(old, number="1", title="Цели", text="Тот же текст.")
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    make_article(new, number="1", title="Цели", text="Тот же текст.")
+    new.publish()
+
+    response = auth_client.get(reverse("redaction_diff", args=["diff-same", old.pk]))
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Текстовых изменений между этими редакциями нет." in content
