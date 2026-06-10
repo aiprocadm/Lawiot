@@ -53,6 +53,30 @@ def test_search_paginates_results(auth_client, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_search_hx_request_returns_partial(auth_client):
+    doc = make_document(slug="hx", title="HX-Акт", official_number="1")
+    make_redaction(doc, full_text="живойпоиск").publish()
+
+    response = auth_client.get(
+        reverse("search"), {"q": "живойпоиск"}, HTTP_HX_REQUEST="true"
+    )
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "HX-Акт" in content
+    assert "<!doctype html" not in content.lower()
+    assert "<nav>" not in content
+
+
+@pytest.mark.django_db
+def test_search_form_has_htmx_attrs(auth_client):
+    response = auth_client.get(reverse("search"))
+    content = response.content.decode()
+    assert "hx-get=" in content
+    assert 'hx-target="#search-results"' in content
+    assert "delay:300ms" in content
+
+
+@pytest.mark.django_db
 def test_search_filter_by_doc_type(auth_client):
     law = make_document(slug="law", title="Закон-про-отпуск",
                         doc_type=Document.DocType.FEDERAL_LAW)
