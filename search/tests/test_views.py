@@ -74,6 +74,7 @@ def test_search_form_has_htmx_attrs(auth_client):
     assert "hx-get=" in content
     assert 'hx-target="#search-results"' in content
     assert "delay:300ms" in content
+    assert 'aria-live="polite"' in content
 
 
 @pytest.mark.django_db

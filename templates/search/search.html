@@ -5,7 +5,7 @@
 
 <form method="get" role="search"
       hx-get="{% url 'search' %}"
-      hx-trigger="keyup changed delay:300ms from:input[name='q'], change, search"
+      hx-trigger="keyup changed delay:300ms from:input[name='q'], change changed, search"
       hx-target="#search-results"
       hx-push-url="true">
   <input type="search" name="q" value="{{ query }}" placeholder="Введите запрос…" aria-label="Запрос">
@@ -24,7 +24,7 @@
   <button type="submit">Найти</button>
 </form>
 
-<div id="search-results">
+<div id="search-results" aria-live="polite" aria-atomic="false">
   {% include "search/_results.html" %}
 </div>
 {% endblock %}
