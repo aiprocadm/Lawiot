@@ -6,6 +6,7 @@ from django.db.models import Exists, OuterRef
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
+from documents.diffing import diff_articles
 from documents.models import Document, Link, Redaction
 
 PAGE_SIZE = 20
@@ -78,4 +79,35 @@ def document_detail(request, slug):
             "is_curator": request.user.is_staff,
             "published_redactions": published_redactions,
         },
+    )
+
+
+@login_required
+def redaction_diff(request, slug, from_pk):
+    """Изменения «прошлая редакция → текущая» для читателя. Read-only."""
+    document = get_object_or_404(Document, slug=slug)
+    current = document.redactions.filter(
+        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
+    ).first()
+    if current is None:
+        raise Http404("Нет опубликованной редакции")
+    older = get_object_or_404(
+        Redaction,
+        pk=from_pk,
+        document=document,
+        review_status=Redaction.ReviewStatus.PUBLISHED,
+    )
+    if older.pk == current.pk:
+        raise Http404("Редакция уже текущая — сравнивать не с чем")
+    # diff_articles(база, новая): older — база, current — «новая»; имена параметров
+    # функции (current_articles/draft_articles) — из admin-сценария, НЕ менять порядок.
+    diffs = [
+        d
+        for d in diff_articles(list(older.articles.all()), list(current.articles.all()))
+        if d.status != "same"
+    ]
+    return render(
+        request,
+        "documents/redaction_diff.html",
+        {"document": document, "older": older, "current": current, "diffs": diffs},
     )

@@ -165,6 +165,128 @@ def test_reader_does_not_see_suggested_links(auth_client):
 
 
 @pytest.mark.django_db
+def test_diff_shows_changed_article_lines(auth_client):
+    doc = make_document(slug="diff-doc", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    make_article(old, number="1", title="Цели", text="Старый текст статьи.")
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    make_article(new, number="1", title="Цели", text="Новый текст статьи.")
+    new.publish()  # становится текущей, old.is_current снимается
+
+    response = auth_client.get(
+        reverse("redaction_diff", args=["diff-doc", old.pk])
+    )
+    content = response.content.decode()
+    assert response.status_code == 200
+    # направление: старая → текущая
+    assert "2023" in content and "2024" in content
+    assert "Новый текст статьи." in content   # строка со знаком +
+    assert "Старый текст статьи." in content  # строка со знаком −
+    assert "изменена" in content
+
+
+@pytest.mark.django_db
+def test_diff_added_removed_and_same_articles(auth_client):
+    doc = make_document(slug="diff-ars", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    make_article(old, number="1", title="Без изменений", text="Стабильный текст.", order=1)
+    make_article(old, number="2", title="Будет удалена", text="Текст удаляемой.", order=2)
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    make_article(new, number="1", title="Без изменений", text="Стабильный текст.", order=1)
+    make_article(new, number="3", title="Новая статья", text="Текст новой.", order=2)
+    new.publish()
+
+    response = auth_client.get(reverse("redaction_diff", args=["diff-ars", old.pk]))
+    content = response.content.decode()
+    assert "Статья 3" in content and "добавлена" in content
+    assert "Статья 2" in content and "удалена" in content
+    # неизменённая статья не показывается
+    assert "Статья 1" not in content
+    assert "Стабильный текст." not in content
+
+
+@pytest.mark.django_db
+def test_diff_no_changes_message(auth_client):
+    doc = make_document(slug="diff-same", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    make_article(old, number="1", title="Цели", text="Тот же текст.")
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    make_article(new, number="1", title="Цели", text="Тот же текст.")
+    new.publish()
+
+    response = auth_client.get(reverse("redaction_diff", args=["diff-same", old.pk]))
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Текстовых изменений между этими редакциями нет." in content
+
+
+@pytest.mark.django_db
+def test_diff_requires_login(client):
+    doc = make_document(slug="diff-anon", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    old.publish()
+    response = client.get(reverse("redaction_diff", args=["diff-anon", old.pk]))
+    assert response.status_code == 302
+    assert "/accounts/login/" in response.url
+
+
+@pytest.mark.django_db
+def test_diff_404_for_draft_or_foreign_or_current(auth_client):
+    doc = make_document(slug="diff-404", official_number="197-ФЗ")
+    current = make_redaction(doc, redaction_date=date(2024, 1, 1))
+    current.publish()
+    draft = make_redaction(doc, redaction_date=date(2025, 1, 1))  # черновик
+
+    other_doc = make_document(slug="diff-404-other", official_number="125-ФЗ")
+    foreign = make_redaction(other_doc, redaction_date=date(2023, 1, 1))
+    foreign.publish()
+
+    # черновик недоступен читателю даже подбором pk
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", draft.pk])
+    ).status_code == 404
+    # редакция чужого документа
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", foreign.pk])
+    ).status_code == 404
+    # сравнение текущей с самой собой
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", current.pk])
+    ).status_code == 404
+    # несуществующий pk
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", 999999])
+    ).status_code == 404
+
+
+@pytest.mark.django_db
+def test_detail_links_to_diff_for_past_redactions(auth_client):
+    doc = make_document(slug="diff-entry", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    new.publish()
+
+    response = auth_client.get(reverse("document_detail", args=["diff-entry"]))
+    content = response.content.decode()
+    # у прошлой редакции есть ссылка на diff, у текущей — нет
+    assert reverse("redaction_diff", args=["diff-entry", old.pk]) in content
+    assert reverse("redaction_diff", args=["diff-entry", new.pk]) not in content
+    assert "что изменилось" in content
+
+
+@pytest.mark.django_db
+def test_detail_no_diff_links_with_single_redaction(auth_client):
+    doc = make_document(slug="diff-single", official_number="197-ФЗ")
+    make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
+    response = auth_client.get(reverse("document_detail", args=["diff-single"]))
+    assert "что изменилось" not in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_detail_renders_article_hierarchy(auth_client):
     doc = make_document(slug="hier", official_number="197-ФЗ")
     red = make_redaction(doc, redaction_date=date(2024, 1, 1))
