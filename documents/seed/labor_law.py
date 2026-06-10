@@ -15,7 +15,7 @@ SEED_ACTS = [
         # Кодировка windows-1251; детали в
         # docs/superpowers/notes/2026-06-08-real-fixtures-characterization.md
         "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102074279&page=1&rdk=0",
-        "auto_ingest": False,  # включить после успешной приёмки (Фаза 5)
+        "auto_ingest": True,  # приёмка пройдена (2026-06-10): акт опубликован, парсер ОК
     },
     # Кандидаты подзаконки трудового права (реквизиты/URL уточняются по официальному
     # источнику pravo.gov.ru, НЕ по коммерческим СПС). Добавлять по одному после
