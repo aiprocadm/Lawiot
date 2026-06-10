@@ -17,14 +17,14 @@
 {% if page_obj.has_other_pages %}
 <nav aria-label="Страницы результатов">
   {% if page_obj.has_previous %}
-  <a href="?{{ base_qs }}&page={{ page_obj.previous_page_number }}"
-     hx-get="?{{ base_qs }}&page={{ page_obj.previous_page_number }}"
+  <a href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+     hx-get="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
      hx-target="#search-results" hx-push-url="true">← Назад</a>
   {% endif %}
   <span>Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
   {% if page_obj.has_next %}
-  <a href="?{{ base_qs }}&page={{ page_obj.next_page_number }}"
-     hx-get="?{{ base_qs }}&page={{ page_obj.next_page_number }}"
+  <a href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+     hx-get="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.next_page_number }}"
      hx-target="#search-results" hx-push-url="true">Вперёд →</a>
   {% endif %}
 </nav>
