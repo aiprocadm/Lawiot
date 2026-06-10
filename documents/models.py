@@ -1,7 +1,8 @@
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
-from django.db.models import Value
+from django.db.models import F, Q, Value
 from django.utils.text import slugify
 
 
@@ -144,12 +145,38 @@ class Article(models.Model):
     class Meta:
         ordering = ["order"]
         indexes = [GinIndex(fields=["search_vector"], name="article_search_gin")]
+        constraints = [
+            # Cheap, DB-enforced guard against the one-row cycle (A is its own
+            # parent). Longer cycles (A→B→A) span multiple rows and are caught
+            # by clean(); a single-row CHECK cannot see them.
+            models.CheckConstraint(
+                condition=~Q(parent=F("id")),
+                name="article_not_self_parent",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:
             prefix = self._ANCHOR_PREFIX.get(self.kind, "p")
             self.anchor = f"{prefix}-{slugify(self.number.replace('.', '-'))}"
         super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        # Walk the parent chain. If we ever revisit this article, the curator has
+        # created a cycle that would make the recursive tree template recurse
+        # until RecursionError (HTTP 500 on the detail page). Reject it here so
+        # admin full_clean() surfaces a friendly validation error instead.
+        seen = {self.pk} if self.pk is not None else set()
+        ancestor = self.parent
+        while ancestor is not None:
+            if ancestor.pk in seen:
+                raise ValidationError(
+                    {"parent": "Цикл в иерархии статей: статья не может быть "
+                     "потомком самой себя."}
+                )
+            seen.add(ancestor.pk)
+            ancestor = ancestor.parent
 
     def __str__(self):
         return f"{self.get_kind_display()} {self.number}".strip()

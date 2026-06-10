@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from documents.models import Article, Link, Redaction
@@ -69,6 +70,49 @@ def test_article_hierarchy_parent_children():
     article = make_article(red, number="81", parent=chapter, order=2)
     assert article.parent == chapter
     assert list(chapter.children.all()) == [article]
+
+
+@pytest.mark.django_db
+def test_article_self_parent_rejected_by_db_constraint():
+    art = make_article()
+    art.parent = art
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            art.save()
+
+
+@pytest.mark.django_db
+def test_article_self_parent_rejected_by_clean():
+    art = make_article()
+    art.parent = art
+    with pytest.raises(ValidationError):
+        art.full_clean()
+
+
+@pytest.mark.django_db
+def test_article_two_node_cycle_rejected_by_clean():
+    red = make_redaction()
+    a = make_article(red, number="1", order=1)
+    b = make_article(red, number="2", parent=a, order=2)
+    a.parent = b
+    with pytest.raises(ValidationError):
+        a.full_clean()
+
+
+@pytest.mark.django_db
+def test_article_valid_deep_hierarchy_accepted_by_clean():
+    red = make_redaction()
+    section = make_article(
+        red, kind=Article.Kind.SECTION, number="III", title="Раздел III", order=1
+    )
+    chapter = make_article(
+        red, kind=Article.Kind.CHAPTER, number="13", parent=section, order=2
+    )
+    article = make_article(red, number="81", parent=chapter, order=3)
+    # full_clean must not raise for a well-formed section→chapter→article chain.
+    article.full_clean()
+    chapter.full_clean()
+    section.full_clean()
 
 
 @pytest.mark.django_db
