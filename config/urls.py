@@ -10,4 +10,9 @@ urlpatterns = [
     path("", views.document_list, name="document_list"),
     path("search/", search_views.search_view, name="search"),
     path("doc/<slug:slug>/", views.document_detail, name="document_detail"),
+    path(
+        "doc/<slug:slug>/diff/<int:from_pk>/",
+        views.redaction_diff,
+        name="redaction_diff",
+    ),
 ]

@@ -115,3 +115,25 @@ def test_reader_does_not_see_suggested_links(auth_client):
     content = response.content.decode()
     assert "125-ФЗ" not in content       # предложенная связь скрыта от читателя
     assert "предложена" not in content
+
+
+@pytest.mark.django_db
+def test_diff_shows_changed_article_lines(auth_client):
+    doc = make_document(slug="diff-doc", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    make_article(old, number="1", title="Цели", text="Старый текст статьи.")
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    make_article(new, number="1", title="Цели", text="Новый текст статьи.")
+    new.publish()  # становится текущей, old.is_current снимается
+
+    response = auth_client.get(
+        reverse("redaction_diff", args=["diff-doc", old.pk])
+    )
+    content = response.content.decode()
+    assert response.status_code == 200
+    # направление: старая → текущая
+    assert "2023" in content and "2024" in content
+    assert "Новый текст статьи." in content   # строка со знаком +
+    assert "Старый текст статьи." in content  # строка со знаком −
+    assert "изменена" in content

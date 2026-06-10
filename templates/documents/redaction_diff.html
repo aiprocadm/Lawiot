@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Изменения — {{ document.title|truncatechars:60 }} — Lawiot{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <a href="{% url 'document_detail' document.slug %}">← {{ document.title|truncatechars:80 }}</a>
+</nav>
+
+<h1>Изменения: редакция от {{ older.redaction_date }} → текущая от {{ current.redaction_date }}</h1>
+
+{% if not diffs %}
+<p>Текстовых изменений между этими редакциями нет.</p>
+{% endif %}
+
+{% for d in diffs %}
+<section class="diff-article diff-{{ d.status }}">
+  <h3>Статья {{ d.number }} —
+    {% if d.status == "changed" %}изменена{% elif d.status == "added" %}добавлена{% elif d.status == "removed" %}удалена{% endif %}
+  </h3>
+  {% if d.lines %}
+  <pre>{% for tag, text in d.lines %}<span class="line {% if tag == '+' %}line-add{% elif tag == '-' %}line-del{% endif %}">{{ tag }} {{ text }}</span>
+{% endfor %}</pre>
+  {% endif %}
+</section>
+{% endfor %}
+
+<style>
+  .diff-changed h3 { color: #b8860b; }
+  .diff-added   h3 { color: #2e7d32; }
+  .diff-removed h3 { color: #c62828; }
+  pre .line { display: block; }
+  .line-add { background: #e6ffed; }
+  .line-del { background: #ffeef0; }
+</style>
+{% endblock %}
