@@ -213,3 +213,27 @@ def test_diff_404_for_draft_or_foreign_or_current(auth_client):
     assert auth_client.get(
         reverse("redaction_diff", args=["diff-404", 999999])
     ).status_code == 404
+
+
+@pytest.mark.django_db
+def test_detail_links_to_diff_for_past_redactions(auth_client):
+    doc = make_document(slug="diff-entry", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    old.publish()
+    new = make_redaction(doc, redaction_date=date(2024, 6, 1))
+    new.publish()
+
+    response = auth_client.get(reverse("document_detail", args=["diff-entry"]))
+    content = response.content.decode()
+    # у прошлой редакции есть ссылка на diff, у текущей — нет
+    assert reverse("redaction_diff", args=["diff-entry", old.pk]) in content
+    assert reverse("redaction_diff", args=["diff-entry", new.pk]) not in content
+    assert "что изменилось" in content
+
+
+@pytest.mark.django_db
+def test_detail_no_diff_links_with_single_redaction(auth_client):
+    doc = make_document(slug="diff-single", official_number="197-ФЗ")
+    make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
+    response = auth_client.get(reverse("document_detail", args=["diff-single"]))
+    assert "что изменилось" not in response.content.decode()
