@@ -174,3 +174,42 @@ def test_diff_no_changes_message(auth_client):
     content = response.content.decode()
     assert response.status_code == 200
     assert "Текстовых изменений между этими редакциями нет." in content
+
+
+@pytest.mark.django_db
+def test_diff_requires_login(client):
+    doc = make_document(slug="diff-anon", official_number="197-ФЗ")
+    old = make_redaction(doc, redaction_date=date(2023, 1, 1))
+    old.publish()
+    response = client.get(reverse("redaction_diff", args=["diff-anon", old.pk]))
+    assert response.status_code == 302
+    assert "/accounts/login/" in response.url
+
+
+@pytest.mark.django_db
+def test_diff_404_for_draft_or_foreign_or_current(auth_client):
+    doc = make_document(slug="diff-404", official_number="197-ФЗ")
+    current = make_redaction(doc, redaction_date=date(2024, 1, 1))
+    current.publish()
+    draft = make_redaction(doc, redaction_date=date(2025, 1, 1))  # черновик
+
+    other_doc = make_document(slug="diff-404-other", official_number="125-ФЗ")
+    foreign = make_redaction(other_doc, redaction_date=date(2023, 1, 1))
+    foreign.publish()
+
+    # черновик недоступен читателю даже подбором pk
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", draft.pk])
+    ).status_code == 404
+    # редакция чужого документа
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", foreign.pk])
+    ).status_code == 404
+    # сравнение текущей с самой собой
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", current.pk])
+    ).status_code == 404
+    # несуществующий pk
+    assert auth_client.get(
+        reverse("redaction_diff", args=["diff-404", 999999])
+    ).status_code == 404
