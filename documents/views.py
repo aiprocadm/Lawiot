@@ -75,6 +75,8 @@ def redaction_diff(request, slug, from_pk):
     )
     if older.pk == current.pk:
         raise Http404("Редакция уже текущая — сравнивать не с чем")
+    # diff_articles(база, новая): older — база, current — «новая»; имена параметров
+    # функции (current_articles/draft_articles) — из admin-сценария, НЕ менять порядок.
     diffs = [
         d
         for d in diff_articles(list(older.articles.all()), list(current.articles.all()))
