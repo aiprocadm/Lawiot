@@ -1,0 +1,5 @@
+<section id="{{ node.anchor }}">
+  <h3>{{ node.get_kind_display }} {{ node.number }}. {{ node.title }}</h3>
+  {% if node.text %}<p>{{ node.text|linebreaks }}</p>{% endif %}
+  {% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child %}{% endfor %}
+</section>

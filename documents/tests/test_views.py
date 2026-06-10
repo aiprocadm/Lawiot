@@ -4,7 +4,7 @@ import pytest
 from django.urls import reverse
 
 from documents import views as doc_views
-from documents.models import Link
+from documents.models import Article, Link
 from documents.tests.factories import make_article, make_document, make_link, make_redaction
 
 
@@ -162,3 +162,39 @@ def test_reader_does_not_see_suggested_links(auth_client):
     content = response.content.decode()
     assert "125-ФЗ" not in content       # предложенная связь скрыта от читателя
     assert "предложена" not in content
+
+
+@pytest.mark.django_db
+def test_detail_renders_article_hierarchy(auth_client):
+    doc = make_document(slug="hier", official_number="197-ФЗ")
+    red = make_redaction(doc, redaction_date=date(2024, 1, 1))
+    red.publish()
+    chapter = make_article(
+        red, kind=Article.Kind.CHAPTER, number="1",
+        title="Общие положения", text="", order=1,
+    )
+    make_article(
+        red, kind=Article.Kind.ARTICLE, number="1",
+        title="Цели", text="Текст статьи.", order=2, parent=chapter,
+    )
+
+    response = auth_client.get(reverse("document_detail", args=["hier"]))
+    roots = response.context["article_tree"]
+    assert len(roots) == 1
+    assert roots[0].kind == "chapter"
+    assert len(roots[0].child_nodes) == 1
+    content = response.content.decode()
+    assert "Общие положения" in content
+    assert "Цели" in content
+    assert "st-1" in content
+
+
+@pytest.mark.django_db
+def test_detail_falls_back_to_full_text_without_articles(auth_client):
+    doc = make_document(slug="plain", official_number="X")
+    make_redaction(
+        doc, redaction_date=date(2024, 1, 1), full_text="Сплошной текст акта."
+    ).publish()
+    response = auth_client.get(reverse("document_detail", args=["plain"]))
+    assert response.context["article_tree"] == []
+    assert "Сплошной текст акта." in response.content.decode()

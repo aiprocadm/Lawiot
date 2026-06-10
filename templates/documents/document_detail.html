@@ -26,21 +26,14 @@
 
 <div class="grid">
   <section>
-    {% if articles %}
+    {% if article_tree %}
     <h2>Оглавление</h2>
     <ul>
-      {% for a in articles %}
-      <li><a href="#{{ a.anchor }}">{{ a.get_kind_display }} {{ a.number }}. {{ a.title }}</a></li>
-      {% endfor %}
+      {% for node in article_tree %}{% include "documents/_toc_node.html" with node=node %}{% endfor %}
     </ul>
 
     <h2>Текст</h2>
-    {% for a in articles %}
-    <section id="{{ a.anchor }}">
-      <h3>{{ a.get_kind_display }} {{ a.number }}. {{ a.title }}</h3>
-      <p>{{ a.text|linebreaks }}</p>
-    </section>
-    {% endfor %}
+    {% for node in article_tree %}{% include "documents/_article_node.html" with node=node %}{% endfor %}
     {% else %}
     <h2>Текст</h2>
     <p>{{ redaction.full_text|linebreaks }}</p>

@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
@@ -36,7 +38,13 @@ def document_detail(request, slug):
     if redaction is None:
         raise Http404("Нет опубликованной редакции")
 
-    articles = redaction.articles.select_related("parent").all()
+    articles = list(redaction.articles.all())
+    children_map = defaultdict(list)
+    for a in articles:
+        children_map[a.parent_id].append(a)
+    for a in articles:
+        a.child_nodes = children_map[a.id]
+    article_tree = children_map[None]
     visible_statuses = [Link.Status.CONFIRMED]
     if request.user.is_staff:
         visible_statuses.append(Link.Status.SUGGESTED)
@@ -63,7 +71,7 @@ def document_detail(request, slug):
         {
             "document": document,
             "redaction": redaction,
-            "articles": articles,
+            "article_tree": article_tree,
             "amendments": amendments,
             "references": references,
             "incoming": incoming,
