@@ -1,5 +1,7 @@
+{% with level=level|default:3 %}
 <section id="{{ node.anchor }}">
-  <h3>{{ node.get_kind_display }} {{ node.number }}. {{ node.title }}</h3>
+  <h{{ level }}>{{ node.get_kind_display }} {{ node.number }}. {{ node.title }}</h{{ level }}>
   {% if node.text %}<p>{{ node.text|linebreaks }}</p>{% endif %}
-  {% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child %}{% endfor %}
+  {% if level < 6 %}{% with next_level=level|add:1 %}{% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child level=next_level %}{% endfor %}{% endwith %}{% else %}{% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child level=level %}{% endfor %}{% endif %}
 </section>
+{% endwith %}

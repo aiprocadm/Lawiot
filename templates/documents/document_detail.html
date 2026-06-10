@@ -33,7 +33,7 @@
     </ul>
 
     <h2>Текст</h2>
-    {% for node in article_tree %}{% include "documents/_article_node.html" with node=node %}{% endfor %}
+    {% for node in article_tree %}{% include "documents/_article_node.html" with node=node level=3 %}{% endfor %}
     {% else %}
     <h2>Текст</h2>
     <p>{{ redaction.full_text|linebreaks }}</p>

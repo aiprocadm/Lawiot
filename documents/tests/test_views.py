@@ -187,6 +187,8 @@ def test_detail_renders_article_hierarchy(auth_client):
     assert "Общие положения" in content
     assert "Цели" in content
     assert "st-1" in content
+    assert "<h3" in content
+    assert "<h4" in content
 
 
 @pytest.mark.django_db
