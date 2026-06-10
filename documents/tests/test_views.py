@@ -3,7 +3,8 @@ from datetime import date
 import pytest
 from django.urls import reverse
 
-from documents.models import Link
+from documents import views as doc_views
+from documents.models import Article, Link
 from documents.tests.factories import make_article, make_document, make_link, make_redaction
 
 
@@ -103,6 +104,52 @@ def test_curator_sees_suggested_links(curator_client):
 
 
 @pytest.mark.django_db
+def test_list_paginates(auth_client, monkeypatch):
+    monkeypatch.setattr(doc_views, "PAGE_SIZE", 2)
+    for i in range(3):
+        d = make_document(slug=f"p-{i}", official_number=str(i), title=f"Акт {i}")
+        make_redaction(d, redaction_date=date(2024, 1, 1)).publish()
+
+    page1 = auth_client.get(reverse("document_list"))
+    assert page1.context["page_obj"].paginator.count == 3
+    assert len(page1.context["page_obj"].object_list) == 2
+
+    page2 = auth_client.get(reverse("document_list"), {"page": "2"})
+    assert len(page2.context["page_obj"].object_list) == 1
+
+
+@pytest.mark.django_db
+def test_list_hx_request_returns_partial(auth_client):
+    d = make_document(slug="hxl", official_number="1", title="HX-Список-Акт")
+    make_redaction(d, redaction_date=date(2024, 1, 1)).publish()
+    response = auth_client.get(reverse("document_list"), HTTP_HX_REQUEST="true")
+    content = response.content.decode()
+    assert "HX-Список-Акт" in content
+    assert "<!doctype html" not in content.lower()
+
+
+@pytest.mark.django_db
+def test_detail_splits_amendments_and_references(auth_client):
+    doc = make_document(slug="split", official_number="197-ФЗ")
+    make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
+    target = make_document(slug="split-t", official_number="125-ФЗ")
+    make_link(from_document=doc, to_document=target,
+              link_type=Link.LinkType.AMENDS, status=Link.Status.CONFIRMED)
+    make_link(from_document=doc, to_document=target,
+              link_type=Link.LinkType.AMENDED_BY, status=Link.Status.CONFIRMED)
+    make_link(from_document=doc, to_document=target,
+              link_type=Link.LinkType.REFERENCES, status=Link.Status.CONFIRMED)
+
+    response = auth_client.get(reverse("document_detail", args=["split"]))
+    amendments = response.context["amendments"]
+    references = response.context["references"]
+    assert all(link.link_type in ("amends", "amended_by") for link in amendments)
+    assert all(link.link_type == "references" for link in references)
+    assert len(amendments) == 2
+    assert len(references) == 1
+
+
+@pytest.mark.django_db
 def test_reader_does_not_see_suggested_links(auth_client):
     doc = make_document(slug="rsee", official_number="197-ФЗ")
     make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
@@ -115,3 +162,41 @@ def test_reader_does_not_see_suggested_links(auth_client):
     content = response.content.decode()
     assert "125-ФЗ" not in content       # предложенная связь скрыта от читателя
     assert "предложена" not in content
+
+
+@pytest.mark.django_db
+def test_detail_renders_article_hierarchy(auth_client):
+    doc = make_document(slug="hier", official_number="197-ФЗ")
+    red = make_redaction(doc, redaction_date=date(2024, 1, 1))
+    red.publish()
+    chapter = make_article(
+        red, kind=Article.Kind.CHAPTER, number="1",
+        title="Общие положения", text="", order=1,
+    )
+    make_article(
+        red, kind=Article.Kind.ARTICLE, number="1",
+        title="Цели", text="Текст статьи.", order=2, parent=chapter,
+    )
+
+    response = auth_client.get(reverse("document_detail", args=["hier"]))
+    roots = response.context["article_tree"]
+    assert len(roots) == 1
+    assert roots[0].kind == "chapter"
+    assert len(roots[0].child_nodes) == 1
+    content = response.content.decode()
+    assert "Общие положения" in content
+    assert "Цели" in content
+    assert "st-1" in content
+    assert "<h3" in content
+    assert "<h4" in content
+
+
+@pytest.mark.django_db
+def test_detail_falls_back_to_full_text_without_articles(auth_client):
+    doc = make_document(slug="plain", official_number="X")
+    make_redaction(
+        doc, redaction_date=date(2024, 1, 1), full_text="Сплошной текст акта."
+    ).publish()
+    response = auth_client.get(reverse("document_detail", args=["plain"]))
+    assert response.context["article_tree"] == []
+    assert "Сплошной текст акта." in response.content.decode()

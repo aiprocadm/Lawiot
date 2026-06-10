@@ -22,6 +22,9 @@ class SearchResult:
 _HL_START = "@@LAWIOT_HL_START@@"
 _HL_STOP = "@@LAWIOT_HL_STOP@@"
 
+# Максимальное число строк, возвращаемых из БД для каждого источника (SQL LIMIT).
+_MAX_HITS_PER_SOURCE = 100
+
 
 def _headline(field, query):
     return SearchHeadline(
@@ -72,7 +75,7 @@ def search_documents(
         .annotate(snippet=_headline("full_text", query))
         .select_related("document"),
         "document__",
-    )
+    ).order_by("-rank")[:_MAX_HITS_PER_SOURCE]
 
     article_hits = apply_doc_filters(
         Article.objects.filter(
@@ -84,7 +87,7 @@ def search_documents(
         .annotate(snippet=_headline("text", query))
         .select_related("redaction__document"),
         "redaction__document__",
-    )
+    ).order_by("-rank")[:_MAX_HITS_PER_SOURCE]
 
     best: dict[int, SearchResult] = {}
     for r in redaction_hits:
