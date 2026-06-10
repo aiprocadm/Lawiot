@@ -3,7 +3,11 @@
 {% block content %}
 <h1>Поиск по актам</h1>
 
-<form method="get" role="search">
+<form method="get" role="search"
+      hx-get="{% url 'search' %}"
+      hx-trigger="keyup changed delay:300ms from:input[name='q'], change changed, search"
+      hx-target="#search-results"
+      hx-push-url="true">
   <input type="search" name="q" value="{{ query }}" placeholder="Введите запрос…" aria-label="Запрос">
   <details>
     <summary>Фильтры</summary>
@@ -20,20 +24,7 @@
   <button type="submit">Найти</button>
 </form>
 
-{% if query %}
-<p>Найдено: {{ results|length }} по запросу «{{ query }}».</p>
-{% for r in results %}
-<article>
-  <h3>
-    <a href="{% url 'document_detail' r.document.slug %}{% if r.article_anchor %}#{{ r.article_anchor }}{% endif %}">
-      {{ r.document.title }}{% if r.article_label %} — {{ r.article_label }}{% endif %}
-    </a>
-  </h3>
-  <small>{{ r.document.get_doc_type_display }} № {{ r.document.official_number }} · {{ r.document.get_status_display }}</small>
-  <p>{{ r.snippet|safe }}</p>
-</article>
-{% empty %}
-<p>Ничего не найдено.</p>
-{% endfor %}
-{% endif %}
+<div id="search-results" aria-live="polite" aria-atomic="false">
+  {% include "search/_results.html" %}
+</div>
 {% endblock %}

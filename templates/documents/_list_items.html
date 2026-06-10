@@ -1,0 +1,26 @@
+<ul>
+  {% for doc in page_obj %}
+  <li>
+    <a href="{% url 'document_detail' doc.slug %}">{{ doc.title }}</a>
+    <small>({{ doc.get_doc_type_display }} № {{ doc.official_number }})</small>
+  </li>
+  {% empty %}
+  <li>Опубликованных актов пока нет.</li>
+  {% endfor %}
+</ul>
+
+{% if page_obj.has_other_pages %}
+<nav aria-label="Страницы">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}"
+     hx-get="?page={{ page_obj.previous_page_number }}"
+     hx-target="#doc-list" hx-push-url="true">← Назад</a>
+  {% endif %}
+  <span>Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}"
+     hx-get="?page={{ page_obj.next_page_number }}"
+     hx-target="#doc-list" hx-push-url="true">Вперёд →</a>
+  {% endif %}
+</nav>
+{% endif %}

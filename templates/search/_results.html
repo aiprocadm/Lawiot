@@ -1,0 +1,32 @@
+{% if query %}
+<p>Найдено: {{ page_obj.paginator.count }} по запросу «{{ query }}».</p>
+{% for r in page_obj %}
+<article>
+  <h3>
+    <a href="{% url 'document_detail' r.document.slug %}{% if r.article_anchor %}#{{ r.article_anchor }}{% endif %}">
+      {{ r.document.title }}{% if r.article_label %} — {{ r.article_label }}{% endif %}
+    </a>
+  </h3>
+  <small>{{ r.document.get_doc_type_display }} № {{ r.document.official_number }} · {{ r.document.get_status_display }}</small>
+  <p>{{ r.snippet }}</p>
+</article>
+{% empty %}
+<p>Ничего не найдено.</p>
+{% endfor %}
+
+{% if page_obj.has_other_pages %}
+<nav aria-label="Страницы результатов">
+  {% if page_obj.has_previous %}
+  <a href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+     hx-get="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.previous_page_number }}"
+     hx-target="#search-results" hx-push-url="true">← Назад</a>
+  {% endif %}
+  <span>Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+     hx-get="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.next_page_number }}"
+     hx-target="#search-results" hx-push-url="true">Вперёд →</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endif %}

@@ -2,16 +2,7 @@
 {% block title %}Акты — Lawiot{% endblock %}
 {% block content %}
 <h1>Нормативно-правовые акты</h1>
-{% if documents %}
-<ul>
-  {% for doc in documents %}
-  <li>
-    <a href="{% url 'document_detail' doc.slug %}">{{ doc.title }}</a>
-    <small>({{ doc.get_doc_type_display }} № {{ doc.official_number }})</small>
-  </li>
-  {% endfor %}
-</ul>
-{% else %}
-<p>Опубликованных актов пока нет.</p>
-{% endif %}
+<div id="doc-list" aria-live="polite" aria-atomic="false">
+  {% include "documents/_list_items.html" %}
+</div>
 {% endblock %}
