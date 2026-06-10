@@ -101,7 +101,7 @@ def test_search_caps_hits_per_source(monkeypatch):
         make_redaction(doc, full_text="уникальноеслово").publish()
 
     results = search_documents("уникальноеслово")
-    assert len(results) <= 2
+    assert len(results) == 2
 
 
 @pytest.mark.django_db
