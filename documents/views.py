@@ -1,9 +1,12 @@
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
 from documents.models import Document, Link, Redaction
+
+PAGE_SIZE = 20
 
 
 @login_required
@@ -13,10 +16,15 @@ def document_list(request):
         is_current=True,
         review_status=Redaction.ReviewStatus.PUBLISHED,
     )
-    documents = Document.objects.filter(Exists(current))
-    return render(
-        request, "documents/document_list.html", {"documents": documents}
+    documents = Document.objects.filter(Exists(current)).order_by("title")
+    page_obj = Paginator(documents, PAGE_SIZE).get_page(request.GET.get("page"))
+
+    template = (
+        "documents/_list_items.html"
+        if request.headers.get("HX-Request")
+        else "documents/document_list.html"
     )
+    return render(request, template, {"page_obj": page_obj})
 
 
 @login_required

@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 from django.urls import reverse
 
+from documents import views as doc_views
 from documents.models import Link
 from documents.tests.factories import make_article, make_document, make_link, make_redaction
 
@@ -100,6 +101,31 @@ def test_curator_sees_suggested_links(curator_client):
     content = response.content.decode()
     assert "125-ФЗ" in content
     assert "предложена" in content  # пометка статуса для куратора
+
+
+@pytest.mark.django_db
+def test_list_paginates(auth_client, monkeypatch):
+    monkeypatch.setattr(doc_views, "PAGE_SIZE", 2)
+    for i in range(3):
+        d = make_document(slug=f"p-{i}", official_number=str(i), title=f"Акт {i}")
+        make_redaction(d, redaction_date=date(2024, 1, 1)).publish()
+
+    page1 = auth_client.get(reverse("document_list"))
+    assert page1.context["page_obj"].paginator.count == 3
+    assert len(page1.context["page_obj"].object_list) == 2
+
+    page2 = auth_client.get(reverse("document_list"), {"page": "2"})
+    assert len(page2.context["page_obj"].object_list) == 1
+
+
+@pytest.mark.django_db
+def test_list_hx_request_returns_partial(auth_client):
+    d = make_document(slug="hxl", official_number="1", title="HX-Список-Акт")
+    make_redaction(d, redaction_date=date(2024, 1, 1)).publish()
+    response = auth_client.get(reverse("document_list"), HTTP_HX_REQUEST="true")
+    content = response.content.decode()
+    assert "HX-Список-Акт" in content
+    assert "<!doctype html" not in content.lower()
 
 
 @pytest.mark.django_db
