@@ -129,6 +129,25 @@ def test_list_hx_request_returns_partial(auth_client):
 
 
 @pytest.mark.django_db
+def test_detail_splits_amendments_and_references(auth_client):
+    doc = make_document(slug="split", official_number="197-ФЗ")
+    make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
+    target = make_document(slug="split-t", official_number="125-ФЗ")
+    make_link(from_document=doc, to_document=target,
+              link_type=Link.LinkType.AMENDS, status=Link.Status.CONFIRMED)
+    make_link(from_document=doc, to_document=target,
+              link_type=Link.LinkType.REFERENCES, status=Link.Status.CONFIRMED)
+
+    response = auth_client.get(reverse("document_detail", args=["split"]))
+    amendments = response.context["amendments"]
+    references = response.context["references"]
+    assert all(l.link_type in ("amends", "amended_by") for l in amendments)
+    assert all(l.link_type == "references" for l in references)
+    assert len(amendments) == 1
+    assert len(references) == 1
+
+
+@pytest.mark.django_db
 def test_reader_does_not_see_suggested_links(auth_client):
     doc = make_document(slug="rsee", official_number="197-ФЗ")
     make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()

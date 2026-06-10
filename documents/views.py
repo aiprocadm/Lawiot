@@ -43,6 +43,13 @@ def document_detail(request, slug):
     outgoing = document.outgoing_links.filter(
         status__in=visible_statuses
     ).select_related("to_document")
+    amendments = [
+        link for link in outgoing
+        if link.link_type in (Link.LinkType.AMENDS, Link.LinkType.AMENDED_BY)
+    ]
+    references = [
+        link for link in outgoing if link.link_type == Link.LinkType.REFERENCES
+    ]
     incoming = document.incoming_links.filter(
         status__in=visible_statuses
     ).select_related("from_document")
@@ -57,7 +64,8 @@ def document_detail(request, slug):
             "document": document,
             "redaction": redaction,
             "articles": articles,
-            "outgoing": outgoing,
+            "amendments": amendments,
+            "references": references,
             "incoming": incoming,
             "is_curator": request.user.is_staff,
             "published_redactions": published_redactions,
