@@ -93,9 +93,7 @@ def _word_group(word: str) -> str:
     """OR-группа raw-tsquery для одного (нормализованного) слова запроса."""
     alternatives = expand_word(word) or [word]
     for phrase in _synonym_phrases(word):
-        words = [
-            _normalize(w) for w in phrase.split() if _CYRILLIC_TOKEN.match(_normalize(w))
-        ]
+        words = [_normalize(w) for w in phrase.split() if _CYRILLIC_TOKEN.match(_normalize(w))]
         if words:
             alternatives.append("(" + " & ".join(words) + ")")
     return "(" + " | ".join(alternatives) + ")"
