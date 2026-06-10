@@ -2,6 +2,7 @@ import pytest
 
 from documents.models import Document
 from documents.tests.factories import make_article, make_document, make_redaction
+from search import services
 from search.services import search_documents
 
 
@@ -90,6 +91,17 @@ def test_filters_by_status_and_issuing_body():
 
     by_body = search_documents("статусслово", issuing_body="минтруд")
     assert {r.document for r in by_body} == {active}
+
+
+@pytest.mark.django_db
+def test_search_caps_hits_per_source(monkeypatch):
+    monkeypatch.setattr(services, "_MAX_HITS_PER_SOURCE", 2)
+    for i in range(3):
+        doc = make_document(slug=f"cap-{i}", official_number=str(i), title=f"Акт {i}")
+        make_redaction(doc, full_text="уникальноеслово").publish()
+
+    results = search_documents("уникальноеслово")
+    assert len(results) <= 2
 
 
 @pytest.mark.django_db
