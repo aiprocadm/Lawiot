@@ -136,6 +136,8 @@ def test_detail_splits_amendments_and_references(auth_client):
     make_link(from_document=doc, to_document=target,
               link_type=Link.LinkType.AMENDS, status=Link.Status.CONFIRMED)
     make_link(from_document=doc, to_document=target,
+              link_type=Link.LinkType.AMENDED_BY, status=Link.Status.CONFIRMED)
+    make_link(from_document=doc, to_document=target,
               link_type=Link.LinkType.REFERENCES, status=Link.Status.CONFIRMED)
 
     response = auth_client.get(reverse("document_detail", args=["split"]))
@@ -143,7 +145,7 @@ def test_detail_splits_amendments_and_references(auth_client):
     references = response.context["references"]
     assert all(l.link_type in ("amends", "amended_by") for l in amendments)
     assert all(l.link_type == "references" for l in references)
-    assert len(amendments) == 1
+    assert len(amendments) == 2
     assert len(references) == 1
 
 
