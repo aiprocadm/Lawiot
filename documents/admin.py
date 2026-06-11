@@ -56,9 +56,7 @@ class RedactionAdmin(admin.ModelAdmin):
                 done += 1
             except (ReparseYieldedNothing, PublishedRedactionExists, ValueError) as exc:
                 self.message_user(request, f"{redaction}: {exc}", level=messages.WARNING)
-        self.message_user(
-            request, f"Переразобрано: {done}; пропущено (не черновик): {skipped}"
-        )
+        self.message_user(request, f"Переразобрано: {done}; пропущено (не черновик): {skipped}")
 
     def get_urls(self):
         custom = [

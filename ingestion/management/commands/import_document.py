@@ -22,9 +22,7 @@ class Command(BaseCommand):
         if not path.exists():
             raise CommandError(f"Файл не найден: {path}")
         content = path.read_bytes()
-        content_type = (
-            "text/html" if path.suffix.lower() in {".html", ".htm"} else "text/plain"
-        )
+        content_type = "text/html" if path.suffix.lower() in {".html", ".htm"} else "text/plain"
         redaction = import_manual(document, content=content, content_type=content_type)
         self.stdout.write(
             self.style.SUCCESS(

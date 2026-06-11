@@ -21,8 +21,7 @@ def test_finds_document_by_full_text():
 def test_finds_article_and_returns_anchor():
     doc = make_document(slug="tk", title="Трудовой кодекс")
     red = make_redaction(doc, full_text="")
-    make_article(red, number="81", title="Расторжение",
-                 text="увольнение работника работодателем")
+    make_article(red, number="81", title="Расторжение", text="увольнение работника работодателем")
     red.publish()
     results = search_documents("работодателем")
     assert len(results) == 1
@@ -33,11 +32,9 @@ def test_finds_article_and_returns_anchor():
 
 @pytest.mark.django_db
 def test_filters_by_doc_type():
-    law = make_document(slug="law", title="Закон",
-                        doc_type=Document.DocType.FEDERAL_LAW)
+    law = make_document(slug="law", title="Закон", doc_type=Document.DocType.FEDERAL_LAW)
     make_redaction(law, full_text="общийтермин в законе").publish()
-    order = make_document(slug="ord", title="Приказ",
-                          doc_type=Document.DocType.ORDER)
+    order = make_document(slug="ord", title="Приказ", doc_type=Document.DocType.ORDER)
     make_redaction(order, full_text="общийтермин в приказе").publish()
 
     results = search_documents("общийтермин", doc_type=Document.DocType.FEDERAL_LAW)
@@ -76,12 +73,16 @@ def test_filters_by_date_range():
 @pytest.mark.django_db
 def test_filters_by_status_and_issuing_body():
     active = make_document(
-        slug="act", title="Действующий", status=Document.Status.IN_FORCE,
+        slug="act",
+        title="Действующий",
+        status=Document.Status.IN_FORCE,
         issuing_body="Минтруд России",
     )
     make_redaction(active, full_text="статусслово примертекст").publish()
     repealed = make_document(
-        slug="rep", title="Утративший", status=Document.Status.REPEALED,
+        slug="rep",
+        title="Утративший",
+        status=Document.Status.REPEALED,
         issuing_body="Иной орган",
     )
     make_redaction(repealed, full_text="статусслово примертекст").publish()
@@ -114,6 +115,6 @@ def test_search_snippet_escapes_html_keeps_mark():
     ).publish()
     [result] = search_documents("налог")
     snippet = str(result.snippet)
-    assert "<script>" not in snippet           # исполняемый тег не проходит
-    assert "&amp;" in snippet                   # спецсимвол «&» экранирован
-    assert "<mark>налог</mark>" in snippet       # подсветка совпадения сохранена
+    assert "<script>" not in snippet  # исполняемый тег не проходит
+    assert "&amp;" in snippet  # спецсимвол «&» экранирован
+    assert "<mark>налог</mark>" in snippet  # подсветка совпадения сохранена

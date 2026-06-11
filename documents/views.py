@@ -49,19 +49,18 @@ def document_detail(request, slug):
     visible_statuses = [Link.Status.CONFIRMED]
     if request.user.is_staff:
         visible_statuses.append(Link.Status.SUGGESTED)
-    outgoing = document.outgoing_links.filter(
-        status__in=visible_statuses
-    ).select_related("to_document")
+    outgoing = document.outgoing_links.filter(status__in=visible_statuses).select_related(
+        "to_document"
+    )
     amendments = [
-        link for link in outgoing
+        link
+        for link in outgoing
         if link.link_type in (Link.LinkType.AMENDS, Link.LinkType.AMENDED_BY)
     ]
-    references = [
-        link for link in outgoing if link.link_type == Link.LinkType.REFERENCES
-    ]
-    incoming = document.incoming_links.filter(
-        status__in=visible_statuses
-    ).select_related("from_document")
+    references = [link for link in outgoing if link.link_type == Link.LinkType.REFERENCES]
+    incoming = document.incoming_links.filter(status__in=visible_statuses).select_related(
+        "from_document"
+    )
     published_redactions = document.redactions.filter(
         review_status=Redaction.ReviewStatus.PUBLISHED
     )

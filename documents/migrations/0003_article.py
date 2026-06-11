@@ -5,27 +5,58 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0002_redaction'),
+        ("documents", "0002_redaction"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Article',
+            name="Article",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('kind', models.CharField(choices=[('section', 'Раздел'), ('chapter', 'Глава'), ('article', 'Статья')], default='article', max_length=20)),
-                ('number', models.CharField(blank=True, max_length=50)),
-                ('title', models.CharField(blank=True, max_length=500)),
-                ('text', models.TextField(blank=True)),
-                ('order', models.PositiveIntegerField(default=0)),
-                ('anchor', models.SlugField(blank=True, max_length=100)),
-                ('parent', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='children', to='documents.article')),
-                ('redaction', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='articles', to='documents.redaction')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "kind",
+                    models.CharField(
+                        choices=[
+                            ("section", "Раздел"),
+                            ("chapter", "Глава"),
+                            ("article", "Статья"),
+                        ],
+                        default="article",
+                        max_length=20,
+                    ),
+                ),
+                ("number", models.CharField(blank=True, max_length=50)),
+                ("title", models.CharField(blank=True, max_length=500)),
+                ("text", models.TextField(blank=True)),
+                ("order", models.PositiveIntegerField(default=0)),
+                ("anchor", models.SlugField(blank=True, max_length=100)),
+                (
+                    "parent",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="children",
+                        to="documents.article",
+                    ),
+                ),
+                (
+                    "redaction",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="articles",
+                        to="documents.redaction",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['order'],
+                "ordering": ["order"],
             },
         ),
     ]

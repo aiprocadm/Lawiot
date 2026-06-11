@@ -5,45 +5,86 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('documents', '0005_article_search_vector_redaction_search_vector_and_more'),
+        ("documents", "0005_article_search_vector_redaction_search_vector_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='RawSource',
+            name="RawSource",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('target_key', models.CharField(max_length=255)),
-                ('content', models.BinaryField()),
-                ('content_hash', models.CharField(db_index=True, max_length=64)),
-                ('content_type', models.CharField(blank=True, max_length=100)),
-                ('source_url', models.URLField(blank=True)),
-                ('fetched_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("target_key", models.CharField(max_length=255)),
+                ("content", models.BinaryField()),
+                ("content_hash", models.CharField(db_index=True, max_length=64)),
+                ("content_type", models.CharField(blank=True, max_length=100)),
+                ("source_url", models.URLField(blank=True)),
+                ("fetched_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['-fetched_at'],
-                'indexes': [models.Index(fields=['target_key', '-fetched_at'], name='ingestion_r_target__56c1a8_idx')],
+                "ordering": ["-fetched_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["target_key", "-fetched_at"], name="ingestion_r_target__56c1a8_idx"
+                    )
+                ],
             },
         ),
         migrations.CreateModel(
-            name='IngestionJob',
+            name="IngestionJob",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('target_key', models.CharField(max_length=255)),
-                ('status', models.CharField(choices=[('success', 'Успех'), ('failed', 'Ошибка'), ('skipped', 'Пропущено')], max_length=20)),
-                ('started_at', models.DateTimeField()),
-                ('finished_at', models.DateTimeField(blank=True, null=True)),
-                ('log', models.TextField(blank=True)),
-                ('error', models.TextField(blank=True)),
-                ('produced_redaction', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ingestion_jobs', to='documents.redaction')),
-                ('raw_source', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='jobs', to='ingestion.rawsource')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("target_key", models.CharField(max_length=255)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("success", "Успех"),
+                            ("failed", "Ошибка"),
+                            ("skipped", "Пропущено"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("started_at", models.DateTimeField()),
+                ("finished_at", models.DateTimeField(blank=True, null=True)),
+                ("log", models.TextField(blank=True)),
+                ("error", models.TextField(blank=True)),
+                (
+                    "produced_redaction",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="ingestion_jobs",
+                        to="documents.redaction",
+                    ),
+                ),
+                (
+                    "raw_source",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="jobs",
+                        to="ingestion.rawsource",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-started_at'],
+                "ordering": ["-started_at"],
             },
         ),
     ]

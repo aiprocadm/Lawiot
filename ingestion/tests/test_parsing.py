@@ -1,7 +1,13 @@
 from pathlib import Path
 
 import ingestion
-from ingestion.parsing import detect_title, html_to_text, parse_articles, parse_document, parse_structure
+from ingestion.parsing import (
+    detect_title,
+    html_to_text,
+    parse_articles,
+    parse_document,
+    parse_structure,
+)
 
 FIXTURES = Path(ingestion.__file__).parent / "fixtures_raw"
 
@@ -11,8 +17,8 @@ def test_html_to_text_strips_tags_scripts_and_head():
     text = html_to_text(html, "text/html")
     assert "Hi" in text
     assert "Body" in text
-    assert "x()" not in text       # script removed
-    assert ".x{}" not in text      # style removed
+    assert "x()" not in text  # script removed
+    assert ".x{}" not in text  # style removed
     assert "T" not in text.splitlines()  # head/title removed
 
 

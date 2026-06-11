@@ -35,9 +35,5 @@ def search_view(request):
         "base_qs": params.urlencode(),
     }
 
-    template = (
-        "search/_results.html"
-        if request.headers.get("HX-Request")
-        else "search/search.html"
-    )
+    template = "search/_results.html" if request.headers.get("HX-Request") else "search/search.html"
     return render(request, template, context)

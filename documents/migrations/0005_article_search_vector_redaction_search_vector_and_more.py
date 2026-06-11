@@ -6,28 +6,31 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0004_link'),
+        ("documents", "0004_link"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='article',
-            name='search_vector',
+            model_name="article",
+            name="search_vector",
             field=django.contrib.postgres.search.SearchVectorField(editable=False, null=True),
         ),
         migrations.AddField(
-            model_name='redaction',
-            name='search_vector',
+            model_name="redaction",
+            name="search_vector",
             field=django.contrib.postgres.search.SearchVectorField(editable=False, null=True),
         ),
         migrations.AddIndex(
-            model_name='article',
-            index=django.contrib.postgres.indexes.GinIndex(fields=['search_vector'], name='article_search_gin'),
+            model_name="article",
+            index=django.contrib.postgres.indexes.GinIndex(
+                fields=["search_vector"], name="article_search_gin"
+            ),
         ),
         migrations.AddIndex(
-            model_name='redaction',
-            index=django.contrib.postgres.indexes.GinIndex(fields=['search_vector'], name='redaction_search_gin'),
+            model_name="redaction",
+            index=django.contrib.postgres.indexes.GinIndex(
+                fields=["search_vector"], name="redaction_search_gin"
+            ),
         ),
     ]

@@ -27,15 +27,11 @@ _MAX_HITS_PER_SOURCE = 100
 
 
 def _headline(field, query):
-    return SearchHeadline(
-        field, query, config="russian", start_sel=_HL_START, stop_sel=_HL_STOP
-    )
+    return SearchHeadline(field, query, config="russian", start_sel=_HL_START, stop_sel=_HL_STOP)
 
 
 def _safe_snippet(raw) -> SafeString:
-    return mark_safe(
-        escape(raw or "").replace(_HL_START, "<mark>").replace(_HL_STOP, "</mark>")
-    )
+    return mark_safe(escape(raw or "").replace(_HL_START, "<mark>").replace(_HL_STOP, "</mark>"))
 
 
 def search_documents(
@@ -67,9 +63,7 @@ def search_documents(
         return qs
 
     redaction_hits = apply_doc_filters(
-        Redaction.objects.filter(
-            is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-        )
+        Redaction.objects.filter(is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED)
         .filter(search_vector=query)
         .annotate(rank=SearchRank(F("search_vector"), query))
         .annotate(snippet=_headline("full_text", query))

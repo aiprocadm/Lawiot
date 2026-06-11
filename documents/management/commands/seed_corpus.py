@@ -11,9 +11,7 @@ class Command(BaseCommand):
         created = updated = 0
         for act in SEED_ACTS:
             defaults = {k: v for k, v in act.items() if k != "slug"}
-            _, was_created = Document.objects.update_or_create(
-                slug=act["slug"], defaults=defaults
-            )
+            _, was_created = Document.objects.update_or_create(slug=act["slug"], defaults=defaults)
             created += was_created
             updated += not was_created
         self.stdout.write(
