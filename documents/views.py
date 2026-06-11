@@ -84,9 +84,7 @@ def document_detail(request, slug):
 @login_required
 def changes_feed(request):
     """Лента изменений: недавно опубликованные редакции, новые сверху."""
-    published = Redaction.objects.filter(
-        review_status=Redaction.ReviewStatus.PUBLISHED
-    )
+    published = Redaction.objects.filter(review_status=Redaction.ReviewStatus.PUBLISHED)
     feed = published.select_related("document").order_by(
         F("published_at").desc(nulls_last=True), "-redaction_date"
     )
