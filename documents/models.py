@@ -3,6 +3,7 @@ from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import F, Q, Value
+from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -24,9 +25,7 @@ class Document(models.Model):
     official_number = models.CharField(max_length=100, blank=True)
     sign_date = models.DateField(null=True, blank=True)
     issuing_body = models.CharField(max_length=255, blank=True)
-    status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.IN_FORCE
-    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.IN_FORCE)
     source_url = models.URLField(blank=True)
     auto_ingest = models.BooleanField(
         default=False,
@@ -49,15 +48,18 @@ class Redaction(models.Model):
         DRAFT = "draft", "Черновик"
         PUBLISHED = "published", "Опубликовано"
 
-    document = models.ForeignKey(
-        Document, related_name="redactions", on_delete=models.CASCADE
-    )
+    document = models.ForeignKey(Document, related_name="redactions", on_delete=models.CASCADE)
     redaction_date = models.DateField(help_text="Действует с")
     full_text = models.TextField(blank=True)
     review_status = models.CharField(
         max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.DRAFT
     )
     is_current = models.BooleanField(default=False)
+    published_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Когда редакция опубликована в системе (ставится publish()).",
+    )
     ingested_at = models.DateTimeField(null=True, blank=True)
     parser_version = models.CharField(max_length=50, blank=True)
     raw_source = models.ForeignKey(
@@ -90,12 +92,13 @@ class Redaction(models.Model):
 
     def publish(self):
         with transaction.atomic():
-            Redaction.objects.filter(
-                document=self.document, is_current=True
-            ).exclude(pk=self.pk).update(is_current=False)
+            Redaction.objects.filter(document=self.document, is_current=True).exclude(
+                pk=self.pk
+            ).update(is_current=False)
             self.review_status = self.ReviewStatus.PUBLISHED
             self.is_current = True
-            self.save(update_fields=["review_status", "is_current"])
+            self.published_at = timezone.now()
+            self.save(update_fields=["review_status", "is_current", "published_at"])
             self.update_search_index()
 
     def update_search_index(self):
@@ -120,12 +123,8 @@ class Article(models.Model):
         CHAPTER = "chapter", "Глава"
         ARTICLE = "article", "Статья"
 
-    redaction = models.ForeignKey(
-        Redaction, related_name="articles", on_delete=models.CASCADE
-    )
-    kind = models.CharField(
-        max_length=20, choices=Kind.choices, default=Kind.ARTICLE
-    )
+    redaction = models.ForeignKey(Redaction, related_name="articles", on_delete=models.CASCADE)
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.ARTICLE)
     number = models.CharField(max_length=50, blank=True)
     title = models.CharField(max_length=500, blank=True)
     text = models.TextField(blank=True)
@@ -172,8 +171,7 @@ class Article(models.Model):
         while ancestor is not None:
             if ancestor.pk in seen:
                 raise ValidationError(
-                    {"parent": "Цикл в иерархии статей: статья не может быть "
-                     "потомком самой себя."}
+                    {"parent": "Цикл в иерархии статей: статья не может быть потомком самой себя."}
                 )
             seen.add(ancestor.pk)
             ancestor = ancestor.parent
@@ -224,12 +222,8 @@ class Link(models.Model):
     link_type = models.CharField(
         max_length=20, choices=LinkType.choices, default=LinkType.REFERENCES
     )
-    origin = models.CharField(
-        max_length=20, choices=Origin.choices, default=Origin.CURATOR
-    )
-    status = models.CharField(
-        max_length=20, choices=Status.choices, default=Status.SUGGESTED
-    )
+    origin = models.CharField(max_length=20, choices=Origin.choices, default=Origin.CURATOR)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUGGESTED)
     context = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -6,9 +6,7 @@ from ingestion.fetching import USER_AGENT, fetch
 
 def test_fetch_returns_content_type_and_final_url():
     def handler(request):
-        return httpx.Response(
-            200, headers={"content-type": "text/html"}, content=b"<h1>hi</h1>"
-        )
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<h1>hi</h1>")
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     result = fetch("https://example.test/doc", client=client)

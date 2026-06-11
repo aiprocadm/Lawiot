@@ -32,8 +32,7 @@ class SweepSummary:
 
     def __str__(self):
         return (
-            f"всего={self.total} успех={self.success} "
-            f"пропущено={self.skipped} ошибок={self.failed}"
+            f"всего={self.total} успех={self.success} пропущено={self.skipped} ошибок={self.failed}"
         )
 
 

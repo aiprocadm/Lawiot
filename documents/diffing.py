@@ -1,5 +1,6 @@
 """Чистая логика текстового diff «черновик ↔ текущая» по статьям.
 Без обращения к БД — на вход последовательности объектов с .number и .text."""
+
 import difflib
 from dataclasses import dataclass, field
 
@@ -8,7 +9,9 @@ from dataclasses import dataclass, field
 class ArticleDiff:
     number: str
     status: str  # "added" | "removed" | "changed" | "same"
-    lines: list = field(default_factory=list)  # list[tuple[str, str]]: (tag, text), tag ∈ {"+","-"," "}
+    lines: list = field(
+        default_factory=list
+    )  # list[tuple[str, str]]: (tag, text), tag ∈ {"+","-"," "}
 
 
 def _line_diff(old_text, new_text):

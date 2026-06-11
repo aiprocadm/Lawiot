@@ -5,16 +5,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0005_article_search_vector_redaction_search_vector_and_more'),
-        ('ingestion', '0001_initial'),
+        ("documents", "0005_article_search_vector_redaction_search_vector_and_more"),
+        ("ingestion", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='redaction',
-            name='raw_source',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='redactions', to='ingestion.rawsource'),
+            model_name="redaction",
+            name="raw_source",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="redactions",
+                to="ingestion.rawsource",
+            ),
         ),
     ]

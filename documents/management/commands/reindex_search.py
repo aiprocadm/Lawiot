@@ -33,7 +33,5 @@ class Command(BaseCommand):
             cursor.execute(_ARTICLE_SQL)
             articles = cursor.rowcount
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Переиндексировано: редакций {redactions}, статей {articles}"
-            )
+            self.style.SUCCESS(f"Переиндексировано: редакций {redactions}, статей {articles}")
         )

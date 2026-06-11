@@ -4,9 +4,7 @@ from django.urls import reverse
 
 @pytest.fixture
 def staff_client(client, django_user_model):
-    user = django_user_model.objects.create_superuser(
-        "curator", "c@example.test", "pass12345"
-    )
+    user = django_user_model.objects.create_superuser("curator", "c@example.test", "pass12345")
     client.force_login(user)
     return client
 

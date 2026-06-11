@@ -6,6 +6,7 @@ from django.utils.html import escape
 from django.utils.safestring import SafeString, mark_safe
 
 from documents.models import Article, Document, Redaction
+from search.lemmas import build_expanded_tsquery
 
 
 @dataclass
@@ -27,9 +28,7 @@ _MAX_HITS_PER_SOURCE = 100
 
 
 def _headline(field, query):
-    return SearchHeadline(
-        field, query, config="russian", start_sel=_HL_START, stop_sel=_HL_STOP
-    )
+    return SearchHeadline(field, query, config="russian", start_sel=_HL_START, stop_sel=_HL_STOP)
 
 
 def _snippets_by_pk(manager, field, pks, query):
@@ -49,9 +48,23 @@ def _snippets_by_pk(manager, field, pks, query):
 
 
 def _safe_snippet(raw) -> SafeString:
-    return mark_safe(
-        escape(raw or "").replace(_HL_START, "<mark>").replace(_HL_STOP, "</mark>")
-    )
+    return mark_safe(escape(raw or "").replace(_HL_START, "<mark>").replace(_HL_STOP, "</mark>"))
+
+
+def _build_query(query_text) -> SearchQuery:
+    """Websearch-запрос, при возможности расширенный словоформами pymorphy3.
+
+    Расширение (см. search.lemmas) добавляется OR-веткой: операторы
+    websearch сохраняются, ranking остаётся ts_rank (это смягчает шум
+    омонимии), а супплетивы и беглые гласные («ребенок» → «ребенка»,
+    «мать» → «матери») начинают находиться. Если расширение неприменимо
+    (операторы websearch, небезопасные токены) — только базовый запрос.
+    """
+    base = SearchQuery(query_text, config="russian", search_type="websearch")
+    expanded = build_expanded_tsquery(query_text)
+    if expanded is None:
+        return base
+    return base | SearchQuery(expanded, config="russian", search_type="raw")
 
 
 def search_documents(
@@ -67,7 +80,7 @@ def search_documents(
     if not query_text:
         return []
 
-    query = SearchQuery(query_text, config="russian", search_type="websearch")
+    query = _build_query(query_text)
 
     def apply_doc_filters(qs, prefix):
         if doc_type:
@@ -86,9 +99,7 @@ def search_documents(
     # сотни КБ для кодекса — и tsvector'ы) не выкачиваем: на живых данных
     # их трансфер для каждой строки-хита стоил секунды на запрос.
     redaction_hits = apply_doc_filters(
-        Redaction.objects.filter(
-            is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-        )
+        Redaction.objects.filter(is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED)
         .filter(search_vector=query)
         .annotate(rank=SearchRank(F("search_vector"), query))
         .select_related("document")

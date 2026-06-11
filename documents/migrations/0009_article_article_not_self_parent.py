@@ -4,14 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0008_alter_link_to_document'),
+        ("documents", "0008_alter_link_to_document"),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='article',
-            constraint=models.CheckConstraint(condition=models.Q(('parent', models.F('id')), _negated=True), name='article_not_self_parent'),
+            model_name="article",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("parent", models.F("id")), _negated=True),
+                name="article_not_self_parent",
+            ),
         ),
     ]

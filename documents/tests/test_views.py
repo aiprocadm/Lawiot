@@ -80,9 +80,7 @@ def test_detail_404_when_no_published_redaction(auth_client):
 
 @pytest.fixture
 def curator_client(client, django_user_model):
-    user = django_user_model.objects.create_user(
-        "curator", password="pass12345", is_staff=True
-    )
+    user = django_user_model.objects.create_user("curator", password="pass12345", is_staff=True)
     client.force_login(user)
     return user, client
 
@@ -94,8 +92,10 @@ def test_curator_sees_suggested_links(curator_client):
     make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
     target = make_document(slug="csee-t", official_number="125-ФЗ")
     make_link(
-        from_document=doc, to_document=target,
-        link_type=Link.LinkType.REFERENCES, status=Link.Status.SUGGESTED,
+        from_document=doc,
+        to_document=target,
+        link_type=Link.LinkType.REFERENCES,
+        status=Link.Status.SUGGESTED,
     )
     response = cclient.get(reverse("document_detail", args=["csee"]))
     content = response.content.decode()
@@ -133,12 +133,24 @@ def test_detail_splits_amendments_and_references(auth_client):
     doc = make_document(slug="split", official_number="197-ФЗ")
     make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
     target = make_document(slug="split-t", official_number="125-ФЗ")
-    make_link(from_document=doc, to_document=target,
-              link_type=Link.LinkType.AMENDS, status=Link.Status.CONFIRMED)
-    make_link(from_document=doc, to_document=target,
-              link_type=Link.LinkType.AMENDED_BY, status=Link.Status.CONFIRMED)
-    make_link(from_document=doc, to_document=target,
-              link_type=Link.LinkType.REFERENCES, status=Link.Status.CONFIRMED)
+    make_link(
+        from_document=doc,
+        to_document=target,
+        link_type=Link.LinkType.AMENDS,
+        status=Link.Status.CONFIRMED,
+    )
+    make_link(
+        from_document=doc,
+        to_document=target,
+        link_type=Link.LinkType.AMENDED_BY,
+        status=Link.Status.CONFIRMED,
+    )
+    make_link(
+        from_document=doc,
+        to_document=target,
+        link_type=Link.LinkType.REFERENCES,
+        status=Link.Status.CONFIRMED,
+    )
 
     response = auth_client.get(reverse("document_detail", args=["split"]))
     amendments = response.context["amendments"]
@@ -155,12 +167,14 @@ def test_reader_does_not_see_suggested_links(auth_client):
     make_redaction(doc, redaction_date=date(2024, 1, 1)).publish()
     target = make_document(slug="rsee-t", official_number="125-ФЗ")
     make_link(
-        from_document=doc, to_document=target,
-        link_type=Link.LinkType.REFERENCES, status=Link.Status.SUGGESTED,
+        from_document=doc,
+        to_document=target,
+        link_type=Link.LinkType.REFERENCES,
+        status=Link.Status.SUGGESTED,
     )
     response = auth_client.get(reverse("document_detail", args=["rsee"]))
     content = response.content.decode()
-    assert "125-ФЗ" not in content       # предложенная связь скрыта от читателя
+    assert "125-ФЗ" not in content  # предложенная связь скрыта от читателя
     assert "предложена" not in content
 
 
@@ -174,14 +188,12 @@ def test_diff_shows_changed_article_lines(auth_client):
     make_article(new, number="1", title="Цели", text="Новый текст статьи.")
     new.publish()  # становится текущей, old.is_current снимается
 
-    response = auth_client.get(
-        reverse("redaction_diff", args=["diff-doc", old.pk])
-    )
+    response = auth_client.get(reverse("redaction_diff", args=["diff-doc", old.pk]))
     content = response.content.decode()
     assert response.status_code == 200
     # направление: старая → текущая
     assert "2023" in content and "2024" in content
-    assert "Новый текст статьи." in content   # строка со знаком +
+    assert "Новый текст статьи." in content  # строка со знаком +
     assert "Старый текст статьи." in content  # строка со знаком −
     assert "изменена" in content
 
@@ -245,21 +257,19 @@ def test_diff_404_for_draft_or_foreign_or_current(auth_client):
     foreign.publish()
 
     # черновик недоступен читателю даже подбором pk
-    assert auth_client.get(
-        reverse("redaction_diff", args=["diff-404", draft.pk])
-    ).status_code == 404
+    assert (
+        auth_client.get(reverse("redaction_diff", args=["diff-404", draft.pk])).status_code == 404
+    )
     # редакция чужого документа
-    assert auth_client.get(
-        reverse("redaction_diff", args=["diff-404", foreign.pk])
-    ).status_code == 404
+    assert (
+        auth_client.get(reverse("redaction_diff", args=["diff-404", foreign.pk])).status_code == 404
+    )
     # сравнение текущей с самой собой
-    assert auth_client.get(
-        reverse("redaction_diff", args=["diff-404", current.pk])
-    ).status_code == 404
+    assert (
+        auth_client.get(reverse("redaction_diff", args=["diff-404", current.pk])).status_code == 404
+    )
     # несуществующий pk
-    assert auth_client.get(
-        reverse("redaction_diff", args=["diff-404", 999999])
-    ).status_code == 404
+    assert auth_client.get(reverse("redaction_diff", args=["diff-404", 999999])).status_code == 404
 
 
 @pytest.mark.django_db
@@ -292,12 +302,21 @@ def test_detail_renders_article_hierarchy(auth_client):
     red = make_redaction(doc, redaction_date=date(2024, 1, 1))
     red.publish()
     chapter = make_article(
-        red, kind=Article.Kind.CHAPTER, number="1",
-        title="Общие положения", text="", order=1,
+        red,
+        kind=Article.Kind.CHAPTER,
+        number="1",
+        title="Общие положения",
+        text="",
+        order=1,
     )
     make_article(
-        red, kind=Article.Kind.ARTICLE, number="1",
-        title="Цели", text="Текст статьи.", order=2, parent=chapter,
+        red,
+        kind=Article.Kind.ARTICLE,
+        number="1",
+        title="Цели",
+        text="Текст статьи.",
+        order=2,
+        parent=chapter,
     )
 
     response = auth_client.get(reverse("document_detail", args=["hier"]))
@@ -316,9 +335,7 @@ def test_detail_renders_article_hierarchy(auth_client):
 @pytest.mark.django_db
 def test_detail_falls_back_to_full_text_without_articles(auth_client):
     doc = make_document(slug="plain", official_number="X")
-    make_redaction(
-        doc, redaction_date=date(2024, 1, 1), full_text="Сплошной текст акта."
-    ).publish()
+    make_redaction(doc, redaction_date=date(2024, 1, 1), full_text="Сплошной текст акта.").publish()
     response = auth_client.get(reverse("document_detail", args=["plain"]))
     assert response.context["article_tree"] == []
     assert "Сплошной текст акта." in response.content.decode()

@@ -27,7 +27,7 @@ class ParsedArticle:
     title: str
     text: str
     order: int
-    kind: str = "article"            # "section" | "chapter" | "article"
+    kind: str = "article"  # "section" | "chapter" | "article"
     parent_order: int | None = None  # order of the nearest enclosing parent node
 
 
@@ -83,9 +83,12 @@ def detect_title(text: str) -> str:
     """Заголовок акта: первая строка с ключевым словом НПА; иначе — первая
     осмысленная нестатейная строка (не навигация, длиннее 10 символов)."""
     candidates = [
-        line for line in text.splitlines()
-        if line and not ARTICLE_RE.match(line)
-        and not SECTION_RE.match(line) and not CHAPTER_RE.match(line)
+        line
+        for line in text.splitlines()
+        if line
+        and not ARTICLE_RE.match(line)
+        and not SECTION_RE.match(line)
+        and not CHAPTER_RE.match(line)
     ]
     for line in candidates:
         low = line.lower()
@@ -136,18 +139,26 @@ def parse_structure(text: str) -> list[ParsedArticle]:
         if sec:
             flush_article()
             order += 1
-            nodes.append(ParsedArticle(sec.group(1), sec.group(2).strip(), "", order, "section", None))
+            nodes.append(
+                ParsedArticle(sec.group(1), sec.group(2).strip(), "", order, "section", None)
+            )
             current_section, current_chapter = order, None
         elif chap:
             flush_article()
             order += 1
-            nodes.append(ParsedArticle(chap.group(1), chap.group(2).strip(), "", order, "chapter", current_section))
+            nodes.append(
+                ParsedArticle(
+                    chap.group(1), chap.group(2).strip(), "", order, "chapter", current_section
+                )
+            )
             current_chapter = order
         elif art:
             flush_article()
             order += 1
             parent = current_chapter if current_chapter is not None else current_section
-            current_article = ParsedArticle(art.group(1), art.group(2).strip(), "", order, "article", parent)
+            current_article = ParsedArticle(
+                art.group(1), art.group(2).strip(), "", order, "article", parent
+            )
             nodes.append(current_article)
             body = []
         elif current_article is not None:
