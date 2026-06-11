@@ -32,6 +32,22 @@ def _headline(field, query):
     )
 
 
+def _snippets_by_pk(manager, field, pks, query):
+    """Вторая фаза поиска: ts_headline только для строк-победителей.
+
+    ts_headline парсит весь текст строки (для кодекса — сотни КБ), поэтому
+    его нельзя вешать на каждый найденный хит: считаем по первичным ключам
+    уже после схлопывания результатов по документам.
+    """
+    if not pks:
+        return {}
+    return dict(
+        manager.filter(pk__in=pks)
+        .annotate(snippet=_headline(field, query))
+        .values_list("pk", "snippet")
+    )
+
+
 def _safe_snippet(raw) -> SafeString:
     return mark_safe(
         escape(raw or "").replace(_HL_START, "<mark>").replace(_HL_STOP, "</mark>")
@@ -66,14 +82,17 @@ def search_documents(
             qs = qs.filter(**{f"{prefix}sign_date__lte": date_to})
         return qs
 
+    # Фаза 1: только хиты и ранги. Тяжёлые колонки (full_text редакции —
+    # сотни КБ для кодекса — и tsvector'ы) не выкачиваем: на живых данных
+    # их трансфер для каждой строки-хита стоил секунды на запрос.
     redaction_hits = apply_doc_filters(
         Redaction.objects.filter(
             is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
         )
         .filter(search_vector=query)
         .annotate(rank=SearchRank(F("search_vector"), query))
-        .annotate(snippet=_headline("full_text", query))
-        .select_related("document"),
+        .select_related("document")
+        .defer("full_text", "search_vector"),
         "document__",
     ).order_by("-rank")[:_MAX_HITS_PER_SOURCE]
 
@@ -84,28 +103,63 @@ def search_documents(
         )
         .filter(search_vector=query)
         .annotate(rank=SearchRank(F("search_vector"), query))
-        .annotate(snippet=_headline("text", query))
-        .select_related("redaction__document"),
+        .select_related("redaction__document")
+        .defer(
+            "text",
+            "search_vector",
+            "redaction__full_text",
+            "redaction__search_vector",
+        ),
         "redaction__document__",
     ).order_by("-rank")[:_MAX_HITS_PER_SOURCE]
 
-    best: dict[int, SearchResult] = {}
+    # Схлопывание: на документ остаётся один лучший хит (приоритет по рангу,
+    # при равенстве — хит по редакции, как и раньше).
+    best: dict[int, Redaction | Article] = {}
     for r in redaction_hits:
         existing = best.get(r.document_id)
         if existing is None or r.rank > existing.rank:
-            best[r.document_id] = SearchResult(
-                document=r.document, rank=r.rank, snippet=_safe_snippet(r.snippet)
-            )
+            best[r.document_id] = r
     for a in article_hits:
-        doc = a.redaction.document
-        existing = best.get(doc.id)
+        doc_id = a.redaction.document_id
+        existing = best.get(doc_id)
         if existing is None or a.rank > existing.rank:
-            best[doc.id] = SearchResult(
-                document=doc,
-                rank=a.rank,
-                snippet=_safe_snippet(a.snippet),
-                article_anchor=a.anchor,
-                article_label=f"{a.get_kind_display()} {a.number}",
+            best[doc_id] = a
+
+    # Фаза 2: сниппеты считаем только победителям схлопывания.
+    winners = best.values()
+    red_snippets = _snippets_by_pk(
+        Redaction.objects,
+        "full_text",
+        [w.pk for w in winners if isinstance(w, Redaction)],
+        query,
+    )
+    art_snippets = _snippets_by_pk(
+        Article.objects,
+        "text",
+        [w.pk for w in winners if isinstance(w, Article)],
+        query,
+    )
+
+    results = []
+    for w in winners:
+        if isinstance(w, Redaction):
+            results.append(
+                SearchResult(
+                    document=w.document,
+                    rank=w.rank,
+                    snippet=_safe_snippet(red_snippets.get(w.pk)),
+                )
+            )
+        else:
+            results.append(
+                SearchResult(
+                    document=w.redaction.document,
+                    rank=w.rank,
+                    snippet=_safe_snippet(art_snippets.get(w.pk)),
+                    article_anchor=w.anchor,
+                    article_label=f"{w.get_kind_display()} {w.number}",
+                )
             )
 
-    return sorted(best.values(), key=lambda x: x.rank, reverse=True)
+    return sorted(results, key=lambda x: x.rank, reverse=True)

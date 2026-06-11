@@ -105,6 +105,39 @@ def test_search_caps_hits_per_source(monkeypatch):
 
 
 @pytest.mark.django_db
+def test_document_with_both_redaction_and_article_hits_collapses():
+    # Термин встречается и в full_text редакции, и в тексте статьи: документ
+    # должен схлопнуться в один результат, и победителю должен достаться
+    # СВОЙ сниппет с подсветкой (проверка маппинга сниппетов второй фазы).
+    doc = make_document(slug="both", title="Кодекс")
+    red = make_redaction(doc, full_text="порядок индексации выплат работнику")
+    make_article(red, number="134", title="Индексация",
+                 text="обеспечение индексации заработной платы")
+    red.publish()
+
+    results = search_documents("индексации")
+    assert len(results) == 1
+    assert results[0].document == doc
+    assert "<mark>" in results[0].snippet
+
+
+@pytest.mark.django_db
+def test_search_runs_constant_number_of_queries(django_assert_max_num_queries):
+    # Двухфазная схема: 2 запроса за хитами + не более 2 за сниппетами
+    # победителей. Headline не должен считаться по каждой найденной строке.
+    for i in range(5):
+        doc = make_document(slug=f"nq-{i}", official_number=str(i), title=f"Акт {i}")
+        red = make_redaction(doc, full_text="диспансеризация работников")
+        make_article(red, number=str(i + 1), title="Гарантии",
+                     text="день прохождения диспансеризации")
+        red.publish()
+
+    with django_assert_max_num_queries(4):
+        results = search_documents("диспансеризация")
+    assert len(results) == 5
+
+
+@pytest.mark.django_db
 def test_search_snippet_escapes_html_keeps_mark():
     doc = make_document(slug="xss", title="Док")
     # Внешний текст с HTML-спецсимволами и тегом-инъекцией: сниппет должен быть
