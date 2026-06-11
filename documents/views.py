@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, F, OuterRef
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
@@ -80,6 +80,40 @@ def document_detail(request, slug):
             "published_redactions": published_redactions,
         },
     )
+
+
+@login_required
+def changes_feed(request):
+    """Лента изменений: недавно опубликованные редакции, новые сверху."""
+    published = Redaction.objects.filter(
+        review_status=Redaction.ReviewStatus.PUBLISHED
+    )
+    feed = published.select_related("document").order_by(
+        F("published_at").desc(nulls_last=True), "-redaction_date"
+    )
+    page_obj = Paginator(feed, PAGE_SIZE).get_page(request.GET.get("page"))
+
+    # Для «что изменилось» нужен pk предыдущей опубликованной редакции того же
+    # документа. Один доп. запрос по документам страницы вместо N+1.
+    doc_ids = {r.document_id for r in page_obj}
+    history = defaultdict(list)  # doc_id -> [(redaction_date, pk), ...] по возрастанию
+    for doc_id, red_date, pk in (
+        published.filter(document_id__in=doc_ids)
+        .order_by("redaction_date")
+        .values_list("document_id", "redaction_date", "pk")
+    ):
+        history[doc_id].append((red_date, pk))
+    for entry in page_obj:
+        entry.prev_pk = next(
+            (
+                pk
+                for red_date, pk in reversed(history[entry.document_id])
+                if red_date < entry.redaction_date
+            ),
+            None,
+        )
+
+    return render(request, "documents/changes_feed.html", {"page_obj": page_obj})
 
 
 @login_required

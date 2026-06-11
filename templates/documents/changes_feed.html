@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Лента изменений — Lawiot{% endblock %}
+{% block content %}
+<h1>Лента изменений</h1>
+
+<ul>
+  {% for red in page_obj %}
+  <li>
+    <a href="{% url 'document_detail' red.document.slug %}">{{ red.document.title }}</a>
+    <small>
+      действует с {{ red.redaction_date }} · опубликовано {{ red.published_at|date:"d.m.Y H:i" }}
+      {% if red.prev_pk %}
+      · <a href="{% url 'redaction_diff' red.document.slug red.prev_pk %}">что изменилось</a>
+      {% endif %}
+    </small>
+  </li>
+  {% empty %}
+  <li>Изменений пока нет.</li>
+  {% endfor %}
+</ul>
+
+{% if page_obj.has_other_pages %}
+<nav aria-label="Страницы">
+  {% if page_obj.has_previous %}
+  <a href="?page={{ page_obj.previous_page_number }}">← Назад</a>
+  {% endif %}
+  <span>Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}">Вперёд →</a>
+  {% endif %}
+</nav>
+{% endif %}
+{% endblock %}
