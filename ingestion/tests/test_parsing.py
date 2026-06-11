@@ -22,6 +22,27 @@ def test_html_to_text_strips_tags_scripts_and_head():
     assert "T" not in text.splitlines()  # head/title removed
 
 
+def test_html_to_text_converts_ips_superscript_numbering():
+    # ИПС (pravo.gov.ru) размечает дробные номера надстрочным индексом:
+    # «Статья 312<span class="W9">1</span>.» означает «Статья 312.1.».
+    html = (
+        '<body><p class="H">Статья 312<span class="W9" style="">1</span>.'
+        " Общие положения</p>"
+        '<p>в статьях 22<span class="W9">2</span> и 22<span class="W9">3</span> кодекса</p>'
+        "</body>"
+    ).encode("utf-8")
+    text = html_to_text(html, "text/html")
+    assert "Статья 312.1. Общие положения" in text.splitlines()
+    assert "в статьях 22.2 и 22.3 кодекса" in text
+
+
+def test_html_to_text_empty_w9_span_does_not_insert_dot():
+    html = '<body><p>Текст<span class="W9"></span> продолжение</p></body>'.encode("utf-8")
+    text = html_to_text(html, "text/html")
+    assert "Текст продолжение" in text
+    assert ".." not in text
+
+
 def test_parse_articles_splits_on_headers():
     text = "Статья 80. Заголовок один\nтекст один\nСтатья 81. Заголовок два\nтекст два"
     arts = parse_articles(text)
@@ -114,6 +135,18 @@ def test_detect_title_prefers_act_keyword_line():
 def test_detect_title_falls_back_to_first_meaningful_line():
     text = "Некий акт без ключевых слов\nСтатья 1. Что-то"
     assert detect_title(text) == "Некий акт без ключевых слов"
+
+
+def test_detect_title_skips_bare_act_type_header():
+    # Шапка ИПС: тип акта отдельной строкой, название — следующей.
+    text = (
+        "РОССИЙСКАЯ ФЕДЕРАЦИЯ\n"
+        "ФЕДЕРАЛЬНЫЙ ЗАКОН\n"
+        "О специальной оценке условий труда\n"
+        "Принят Государственной Думой 23 декабря 2013 года\n"
+        "Статья 1. Предмет регулирования\nтекст"
+    )
+    assert detect_title(text) == "О специальной оценке условий труда"
 
 
 def test_parse_document_extracts_requisite_hints():
