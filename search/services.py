@@ -6,6 +6,7 @@ from django.utils.html import escape
 from django.utils.safestring import SafeString, mark_safe
 
 from documents.models import Article, Document, Redaction
+from search.lemmas import build_expanded_tsquery
 
 
 @dataclass
@@ -34,6 +35,22 @@ def _safe_snippet(raw) -> SafeString:
     return mark_safe(escape(raw or "").replace(_HL_START, "<mark>").replace(_HL_STOP, "</mark>"))
 
 
+def _build_query(query_text) -> SearchQuery:
+    """Websearch-запрос, при возможности расширенный словоформами pymorphy3.
+
+    Расширение (см. search.lemmas) добавляется OR-веткой: операторы
+    websearch сохраняются, ranking остаётся ts_rank (это смягчает шум
+    омонимии), а супплетивы и беглые гласные («ребенок» → «ребенка»,
+    «мать» → «матери») начинают находиться. Если расширение неприменимо
+    (операторы websearch, небезопасные токены) — только базовый запрос.
+    """
+    base = SearchQuery(query_text, config="russian", search_type="websearch")
+    expanded = build_expanded_tsquery(query_text)
+    if expanded is None:
+        return base
+    return base | SearchQuery(expanded, config="russian", search_type="raw")
+
+
 def search_documents(
     query_text,
     *,
@@ -47,7 +64,7 @@ def search_documents(
     if not query_text:
         return []
 
-    query = SearchQuery(query_text, config="russian", search_type="websearch")
+    query = _build_query(query_text)
 
     def apply_doc_filters(qs, prefix):
         if doc_type:
