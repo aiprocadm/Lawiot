@@ -36,6 +36,13 @@ def test_html_to_text_converts_ips_superscript_numbering():
     assert "в статьях 22.2 и 22.3 кодекса" in text
 
 
+def test_html_to_text_empty_w9_span_does_not_insert_dot():
+    html = '<body><p>Текст<span class="W9"></span> продолжение</p></body>'.encode("utf-8")
+    text = html_to_text(html, "text/html")
+    assert "Текст продолжение" in text
+    assert ".." not in text
+
+
 def test_parse_articles_splits_on_headers():
     text = "Статья 80. Заголовок один\nтекст один\nСтатья 81. Заголовок два\nтекст два"
     arts = parse_articles(text)

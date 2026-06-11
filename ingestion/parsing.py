@@ -53,7 +53,8 @@ def html_to_text(content: bytes, content_type: str = "text/html") -> str:
         # «Статья 312<span class="W9">1</span>.» означает «Статья 312.1.».
         # Без склейки get_text("\n") разорвал бы такой заголовок на три строки.
         for sup in soup.find_all("span", class_="W9"):
-            sup.replace_with(f".{sup.get_text(strip=True)}")
+            inner = sup.get_text(strip=True)
+            sup.replace_with(f".{inner}" if inner else "")
         soup.smooth()
         raw = soup.get_text("\n")
     else:
