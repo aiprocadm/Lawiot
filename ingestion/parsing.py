@@ -19,6 +19,8 @@ DATE_HINT_RE = re.compile(r"\b(\d{2}\.\d{2}\.\d{4})\b")
 # Ключевые слова в наименовании НПА — приоритетные кандидаты в заголовок.
 TITLE_KEYWORDS = ("кодекс", "федеральный закон", "постановление", "приказ", "закон")
 _TITLE_SKIP = {"главная", "поиск", "официальный интернет-портал"}
+# Строка-«тип акта» без названия (шапка ИПС): заголовок ищем на следующей строке.
+_BARE_ACT_TYPES = {"федеральный закон", "федеральный конституционный закон", "закон"}
 
 
 @dataclass
@@ -47,6 +49,12 @@ def html_to_text(content: bytes, content_type: str = "text/html") -> str:
         soup = BeautifulSoup(content, "html.parser")
         for tag in soup(["script", "style", "head"]):
             tag.decompose()
+        # ИПС (pravo.gov.ru) размечает дробные номера надстрочным индексом:
+        # «Статья 312<span class="W9">1</span>.» означает «Статья 312.1.».
+        # Без склейки get_text("\n") разорвал бы такой заголовок на три строки.
+        for sup in soup.find_all("span", class_="W9"):
+            sup.replace_with(f".{sup.get_text(strip=True)}")
+        soup.smooth()
         raw = soup.get_text("\n")
     else:
         raw = content.decode("utf-8", errors="replace")
@@ -90,9 +98,11 @@ def detect_title(text: str) -> str:
         and not SECTION_RE.match(line)
         and not CHAPTER_RE.match(line)
     ]
-    for line in candidates:
+    for i, line in enumerate(candidates):
         low = line.lower()
         if any(k in low for k in TITLE_KEYWORDS):
+            if low.strip(' .«»"') in _BARE_ACT_TYPES and i + 1 < len(candidates):
+                return candidates[i + 1]
             return line
     for line in candidates:
         if len(line) > 10 and line.lower() not in _TITLE_SKIP:
