@@ -9,6 +9,7 @@ def test_seed_corpus_is_idempotent():
     call_command("seed_corpus")
     first = Document.objects.count()
     assert Document.objects.filter(slug="tk-rf").exists()
+    assert Document.objects.filter(slug="sout-426-fz", official_number="426-ФЗ").exists()
     call_command("seed_corpus")  # повтор не плодит дубликаты и не падает
     assert Document.objects.count() == first
 
