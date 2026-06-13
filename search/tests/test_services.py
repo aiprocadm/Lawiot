@@ -138,6 +138,38 @@ def test_synonym_zarplata_finds_zarabotnaya_plata():
 
 
 @pytest.mark.django_db
+def test_synonym_bolnichny_finds_netrudosposobnost():
+    # «больничный» (стем больничн) не находит «нетрудоспособности» без словаря.
+    doc = make_document(slug="bl", title="Пособия")
+    make_redaction(
+        doc, full_text="Пособие по временной нетрудоспособности выплачивается работнику."
+    ).publish()
+    results = search_documents("больничный")
+    assert [r.document for r in results] == [doc]
+
+
+@pytest.mark.django_db
+def test_synonym_kontrakt_finds_trudovoy_dogovor():
+    # «контракт» (стем контракт) не находит «трудовой договор» (стем договор).
+    doc = make_document(slug="td", title="Договор")
+    make_redaction(doc, full_text="Трудовой договор заключается в письменной форме.").publish()
+    results = search_documents("контракт")
+    assert [r.document for r in results] == [doc]
+
+
+@pytest.mark.django_db
+def test_synonym_podrabotka_finds_sovmestitelstvo():
+    # «подработка» (стем подработк) не находит «совместительство» — без
+    # словаря запрос даёт ноль результатов на живом ТК РФ.
+    doc = make_document(slug="sov", title="Совместительство")
+    make_redaction(
+        doc, full_text="Работа по совместительству выполняется в свободное от основной работы время."
+    ).publish()
+    results = search_documents("подработка")
+    assert [r.document for r in results] == [doc]
+
+
+@pytest.mark.django_db
 def test_quoted_phrase_still_exact():
     match = make_document(slug="ph1", title="Фраза")
     make_redaction(match, full_text="пособие по безработице гражданам").publish()
