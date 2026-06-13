@@ -100,3 +100,37 @@ def test_real_tk_rf_auto_publishes_consolidated_redaction():
     assert red.redaction_date == date(2025, 12, 29)
     # опубликована вся сводная редакция, а не обрезок (гейт AUTOPUBLISH_MIN_RATIO)
     assert red.articles.filter(kind=Article.Kind.ARTICLE).count() >= 450
+
+
+@pytest.mark.django_db
+@pytest.mark.skipif(
+    not (FIXTURES / "sout_426fz_real.html").exists(),
+    reason="реальная фикстура 426-ФЗ не захвачена",
+)
+def test_real_sout426_ingest_creates_clean_draft():
+    """Приёмка парсера на 2-м акте корпуса (426-ФЗ СОУТ): сквозной ingest_target на
+    ЖИВОЙ фикстуре при auto_publish=False даёт ЧИСТЫЙ ЧЕРНОВИК (не публикует) с
+    корректной структурой — 4 главы, ≥27 статей, без «сирот». Это и есть приёмка,
+    обосновывающая включение auto_ingest=True для sout-426-fz в сиде (черновики для
+    куратора, без авто-публикации)."""
+    content = (FIXTURES / "sout_426fz_real.html").read_bytes()
+    doc = make_document(
+        slug="sout-426-fz",
+        doc_type="federal_law",
+        title="О специальной оценке условий труда",
+        official_number="426-ФЗ",
+        auto_publish=False,
+    )
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+
+    job = ingest_target(target, client=_client_returning(content))
+
+    assert job.status == IngestionJob.Status.SUCCESS
+    red = Redaction.objects.get(document=doc)
+    # auto_publish=False → остаётся черновиком, текущим не становится
+    assert red.review_status == Redaction.ReviewStatus.DRAFT
+    assert red.is_current is False
+    assert red.articles.filter(kind=Article.Kind.ARTICLE).count() >= 27
+    assert red.articles.filter(kind=Article.Kind.CHAPTER).count() == 4
+    # без «сирот»: у каждой статьи есть родительская глава
+    assert not red.articles.filter(kind=Article.Kind.ARTICLE, parent__isnull=True).exists()
