@@ -19,6 +19,11 @@ SEED_ACTS = [
         # docs/superpowers/notes/2026-06-08-real-fixtures-characterization.md
         "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102074279&print=1",
         "auto_ingest": True,  # приёмка пройдена (2026-06-10): акт опубликован, парсер ОК
+        # §17 авто-консолидация: ежедневный обход сам публикует свежую сводную
+        # редакцию. Включено после сквозной приёмки на живой фикстуре (дата редакции
+        # = последняя поправка, гейт AUTOPUBLISH_MIN_RATIO защищает от обрезка):
+        # см. test_real_tk_rf_auto_publishes_consolidated_redaction.
+        "auto_publish": True,
     },
     {
         "slug": "sout-426-fz",
@@ -28,7 +33,10 @@ SEED_ACTS = [
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
         "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102170672&print=1",
-        "auto_ingest": False,  # включить после приёмки парсера на этом акте
+        # Приёмка парсера пройдена на живой фикстуре (4 главы, ≥27 статей, без «сирот»):
+        # см. test_real_sout426_ingest_creates_clean_draft. auto_ingest даёт лишь
+        # ЧЕРНОВИКИ для куратора (auto_publish остаётся False — без авто-публикации).
+        "auto_ingest": True,
     },
     # Кандидаты подзаконки трудового права (реквизиты/URL уточняются по официальному
     # источнику pravo.gov.ru, НЕ по коммерческим СПС). Добавлять по одному после
