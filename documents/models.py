@@ -31,6 +31,10 @@ class Document(models.Model):
         default=False,
         help_text="Включить периодический авто-приём из source_url по расписанию.",
     )
+    auto_publish = models.BooleanField(
+        default=False,
+        help_text="Авто-публиковать свежую редакцию из source_url как текущую, без куратора.",
+    )
     official_pub_date = models.DateField(null=True, blank=True)
     slug = models.SlugField(max_length=255, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

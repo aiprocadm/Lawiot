@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -48,3 +49,13 @@ def test_sout_426fz_real_fixture_structure():
     assert all(a.parent_order is not None for a in articles)
     # Шапка ИПС «ФЕДЕРАЛЬНЫЙ ЗАКОН» не должна затмить название акта.
     assert "специальной оценке условий труда" in parsed.title.lower()
+
+
+@pytest.mark.skipif(
+    not (FIXTURES / "tk_rf_real.html").exists(),
+    reason="реальная фикстура ТК РФ не захвачена",
+)
+def test_real_tk_rf_redaction_date_is_latest_amendment():
+    content = (FIXTURES / "tk_rf_real.html").read_bytes()
+    parsed = parse_document(content, "text/html")
+    assert parsed.detected_redaction_date == date(2025, 12, 29)

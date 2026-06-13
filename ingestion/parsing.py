@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass, field
+from datetime import date
 
 from bs4 import BeautifulSoup
 
@@ -15,6 +16,14 @@ CHAPTER_RE = re.compile(r"^Глава\s+(\d+(?:\.\d+)?)\.?\s*(.*)$", re.IGNORECA
 # Реквизиты НПА: номер вида «197-ФЗ» / «1-ФКЗ» и дата «ДД.ММ.ГГГГ»
 NUMBER_HINT_RE = re.compile(r"\b(\d{1,4}-(?:ФЗ|ФКЗ))\b")
 DATE_HINT_RE = re.compile(r"\b(\d{2}\.\d{2}\.\d{4})\b")
+
+# Дата инкорпорированной поправки: «… от ДД.ММ.ГГГГ № NNN-ФЗ» (или -ФКЗ).
+# Максимум таких дат = дата последней поправки = дата редакции (см. spec §4.1).
+# \xa0 — неразрывный пробел в тексте ИПС, поэтому разделители — [ \xa0]+ вместо \s+.
+REDACTION_DATE_RE = re.compile(
+    r"от[ \xa0]+(\d{2})\.(\d{2})\.(\d{4})[ \xa0]*(?:№|N)[ \xa0]*\d+-(?:ФКЗ|ФЗ)",
+    re.IGNORECASE,
+)
 
 # Ключевые слова в наименовании НПА — приоритетные кандидаты в заголовок.
 TITLE_KEYWORDS = ("кодекс", "федеральный закон", "постановление", "приказ", "закон")
@@ -40,6 +49,7 @@ class ParsedDocument:
     articles: list[ParsedArticle] = field(default_factory=list)
     detected_number: str = ""
     detected_date: str = ""
+    detected_redaction_date: date | None = None
 
 
 def html_to_text(content: bytes, content_type: str = "text/html") -> str:
@@ -111,6 +121,16 @@ def detect_title(text: str) -> str:
     return candidates[0] if candidates else ""
 
 
+def detect_redaction_date(text: str) -> date | None:
+    """Дата редакции = максимум дат из цитат поправок «… от ДД.ММ.ГГГГ № NNN-ФЗ».
+    None, если ни одной цитаты-закона нет (тогда авто-публикация не сработает)."""
+    dates = [
+        date(int(y), int(m), int(d))
+        for d, m, y in REDACTION_DATE_RE.findall(text or "")
+    ]
+    return max(dates) if dates else None
+
+
 def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDocument:
     """Полный разбор: текст + список статей + заголовок-эвристика + реквизиты."""
     text = html_to_text(content, content_type)
@@ -124,6 +144,7 @@ def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDoc
         articles=articles,
         detected_number=num.group(1) if num else "",
         detected_date=dt.group(1) if dt else "",
+        detected_redaction_date=detect_redaction_date(text),
     )
 
 

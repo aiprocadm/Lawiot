@@ -4,13 +4,14 @@ import httpx
 import pytest
 
 from documents.models import Article, Document, Redaction
-from documents.tests.factories import make_document, make_redaction
+from documents.tests.factories import make_article, make_document, make_redaction
 from ingestion.models import IngestionJob, RawSource
 from ingestion.parsing import parse_document
 from ingestion.services import (
     IngestionTarget,
     PublishedRedactionExists,
     ReparseYieldedNothing,
+    _is_safe_to_publish,
     compute_hash,
     content_changed,
     create_draft_from_parsed,
@@ -128,17 +129,21 @@ def test_ingest_target_quarantines_on_fetch_error():
 
 
 @pytest.mark.django_db
-def test_ingest_target_quarantines_but_keeps_raw_when_published_blocks_draft():
+def test_ingest_target_skips_when_published_redaction_blocks_same_date():
     doc = make_document(slug="tk4", official_number="z")
     # Уже есть опубликованная редакция на сегодняшнюю дату → черновик создать нельзя.
+    # HTML без цитаты-закона → дата редакции = «сегодня» → совпадение с published.
     today = datetime.now(timezone.utc).date()
     published = make_redaction(doc, redaction_date=today, full_text="официальное")
     published.publish()
     target = IngestionTarget(document=doc, url="https://e.test/tk", target_key="tk4")
     job = ingest_target(target, client=_client_returning(HTML))
-    assert job.status == IngestionJob.Status.FAILED
-    assert "PublishedRedactionExists" in job.error
-    # Карантин, а не тихий пропуск: сырьё сохранено для повторного разбора.
+    # Та же дата уже опубликована — обновлять нечего, это не ошибка, а пропуск (§6).
+    assert job.status == IngestionJob.Status.SKIPPED
+    assert not job.error
+    published.refresh_from_db()
+    assert published.full_text == "официальное"  # опубликованное не перезаписано
+    # Сырьё всё равно сохранено (change-detection прошла до создания черновика).
     assert RawSource.objects.filter(target_key="tk4").count() == 1
 
 
@@ -242,3 +247,123 @@ def test_create_draft_persists_hierarchy():
     assert chapter.parent_id == section.id
     assert article.parent_id == chapter.id
     assert article.anchor == "st-1"
+
+
+def _redaction_with_n_articles(n, **kwargs):
+    red = make_redaction(**kwargs)
+    for i in range(n):
+        make_article(redaction=red, number=str(i + 1), order=i + 1)
+    return red
+
+
+@pytest.mark.django_db
+def test_gate_blocks_zero_articles_and_empty_text():
+    new = make_redaction(full_text="")
+    assert _is_safe_to_publish(new, None) is False
+
+
+@pytest.mark.django_db
+def test_gate_allows_first_redaction_with_articles():
+    new = _redaction_with_n_articles(3)
+    assert _is_safe_to_publish(new, None) is True
+
+
+@pytest.mark.django_db
+def test_gate_allows_unstructured_text_when_no_current():
+    new = make_redaction(full_text="Длинный неструктурированный текст акта.")
+    assert _is_safe_to_publish(new, None) is True
+
+
+@pytest.mark.django_db
+def test_gate_blocks_sharp_drop_vs_current():
+    doc = make_document()
+    current = _redaction_with_n_articles(10, document=doc, redaction_date=date(2023, 1, 1))
+    new = _redaction_with_n_articles(3, document=doc, redaction_date=date(2024, 1, 1))
+    assert _is_safe_to_publish(new, current) is False  # 3 < 0.8 * 10
+
+
+@pytest.mark.django_db
+def test_gate_allows_equal_or_more_articles():
+    doc = make_document()
+    current = _redaction_with_n_articles(10, document=doc, redaction_date=date(2023, 1, 1))
+    same = _redaction_with_n_articles(10, document=doc, redaction_date=date(2024, 1, 1))
+    more = _redaction_with_n_articles(12, document=doc, redaction_date=date(2025, 1, 1))
+    assert _is_safe_to_publish(same, current) is True
+    assert _is_safe_to_publish(more, current) is True
+
+
+# HTML с цитатой поправки (→ дата редакции 15.03.2024) и одной статьёй.
+HTML_DATED = (
+    "<h1>Кодекс</h1>"
+    "<p>(В редакции Федерального закона от 15.03.2024 № 50-ФЗ)</p>"
+    "<p>Статья 1. Предмет</p><p>текст статьи</p>"
+).encode("utf-8")
+
+
+@pytest.mark.django_db
+def test_ingest_sets_real_redaction_date():
+    doc = make_document(slug="rd", official_number="50-ФЗ", auto_publish=False)
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+    ingest_target(target, client=_client_returning(HTML_DATED))
+    red = Redaction.objects.get(document=doc)
+    assert red.redaction_date == date(2024, 3, 15)
+    assert red.review_status == Redaction.ReviewStatus.DRAFT  # auto_publish off → черновик
+
+
+@pytest.mark.django_db
+def test_auto_publish_publishes_safe_redaction():
+    doc = make_document(slug="ap1", official_number="50-ФЗ", auto_publish=True)
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+    job = ingest_target(target, client=_client_returning(HTML_DATED))
+    red = Redaction.objects.get(document=doc)
+    assert red.review_status == Redaction.ReviewStatus.PUBLISHED
+    assert red.is_current is True
+    assert red.published_at is not None
+    assert job.status == IngestionJob.Status.SUCCESS
+
+
+@pytest.mark.django_db
+def test_auto_publish_skips_when_no_date():
+    # HTML без цитаты-закона → даты нет → не публикуем, остаётся черновик.
+    html = b"<h1>Akt</h1><p>\xd0\xa1\xd1\x82\xd0\xb0\xd1\x82\xd1\x8c\xd1\x8f 1. X</p><p>t</p>"
+    doc = make_document(slug="ap2", official_number="2", auto_publish=True)
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+    ingest_target(target, client=_client_returning(html))
+    red = Redaction.objects.get(document=doc)
+    assert red.review_status == Redaction.ReviewStatus.DRAFT
+    assert red.is_current is False
+
+
+@pytest.mark.django_db
+def test_auto_publish_blocked_by_gate_keeps_draft():
+    doc = make_document(slug="ap3", official_number="50-ФЗ", auto_publish=True)
+    # текущая опубликованная редакция с 10 статьями
+    current = make_redaction(
+        document=doc,
+        redaction_date=date(2023, 1, 1),
+        review_status=Redaction.ReviewStatus.PUBLISHED,
+        is_current=True,
+    )
+    for i in range(10):
+        make_article(redaction=current, number=str(i + 1), order=i + 1)
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+    ingest_target(target, client=_client_returning(HTML_DATED))  # 1 статья < 0.8*10
+    new = Redaction.objects.get(document=doc, redaction_date=date(2024, 3, 15))
+    assert new.review_status == Redaction.ReviewStatus.DRAFT
+    current.refresh_from_db()
+    assert current.is_current is True  # текущая не тронута
+
+
+@pytest.mark.django_db
+def test_ingest_skips_when_same_date_already_published():
+    doc = make_document(slug="ap4", official_number="50-ФЗ", auto_publish=True)
+    # уже опубликованная редакция на ту же дату, что даст HTML_DATED (15.03.2024)
+    make_redaction(
+        document=doc,
+        redaction_date=date(2024, 3, 15),
+        review_status=Redaction.ReviewStatus.PUBLISHED,
+        is_current=True,
+    )
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+    job = ingest_target(target, client=_client_returning(HTML_DATED))
+    assert job.status == IngestionJob.Status.SKIPPED

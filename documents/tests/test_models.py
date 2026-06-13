@@ -135,3 +135,9 @@ def test_article_anchor_preserves_dotted_number():
 def test_document_auto_ingest_defaults_false():
     doc = make_document(slug="auto-flag", official_number="1")
     assert doc.auto_ingest is False
+
+
+@pytest.mark.django_db
+def test_document_auto_publish_defaults_false():
+    doc = make_document(slug="autopub-flag", official_number="2")
+    assert doc.auto_publish is False
