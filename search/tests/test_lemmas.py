@@ -71,6 +71,29 @@ def test_build_expanded_tsquery_synonyms_by_lemma():
     assert "беременности" in raw
 
 
+def test_build_expanded_tsquery_synonyms_lay_legal_terms():
+    # Разговорный термин со стемом, отличным от юридического: синоним
+    # обязан добавить AND-подгруппу с юридической формулировкой.
+    cases = {
+        "больничный": "временной & нетрудоспособности",
+        "отгул": "день & отдыха",
+        "удаленка": "дистанционная & работа",
+        "вахта": "вахтовый & метод",
+        "контракт": "трудовой & договор",
+    }
+    for query, phrase in cases.items():
+        raw = build_expanded_tsquery(query)
+        assert raw is not None, query
+        assert phrase in raw, (query, raw)
+
+
+def test_build_expanded_tsquery_synonym_udalenka_by_lemma():
+    # косвенная форма «удалёнке» → лемма «удалёнка» (ё→е) → тот же синоним
+    raw = build_expanded_tsquery("удаленке")
+    assert raw is not None
+    assert "дистанционная & работа" in raw
+
+
 def test_build_expanded_tsquery_keeps_numeric_tokens():
     raw = build_expanded_tsquery("статья 261")
     assert raw is not None
