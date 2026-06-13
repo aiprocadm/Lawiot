@@ -3,6 +3,7 @@ from pathlib import Path
 
 import ingestion
 from ingestion.parsing import (
+    detect_redaction_date,
     detect_title,
     html_to_text,
     parse_articles,
@@ -164,13 +165,6 @@ def test_parse_structure_uppercase_headers():
     assert ("section", "I") in kinds
     assert ("chapter", "1") in kinds
     assert ("article", "1") in kinds
-
-
-# ---------------------------------------------------------------------------
-# detect_redaction_date
-# ---------------------------------------------------------------------------
-
-from ingestion.parsing import detect_redaction_date  # noqa: E402
 
 
 def test_detect_redaction_date_picks_max_citation_date():
