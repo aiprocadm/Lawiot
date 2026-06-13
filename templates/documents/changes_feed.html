@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Лента изменений — Lawiot{% endblock %}
+{% block extra_head %}
+<link rel="alternate" type="application/atom+xml" title="Lawiot — лента изменений"
+      href="{% url 'changes_feed_atom' %}">
+{% endblock %}
 {% block content %}
 <h1>Лента изменений</h1>
+<p><small><a href="{% url 'changes_feed_atom' %}">Подписаться (Atom)</a></small></p>
 
 <ul>
   {% for red in page_obj %}
