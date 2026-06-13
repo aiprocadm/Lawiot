@@ -127,7 +127,8 @@ def _is_safe_to_publish(new_redaction, current_redaction):
 
 def ingest_target(target, *, client=None):
     """Конвейер по одной цели: скачать → сохранить сырьё → обнаружить изменение →
-    разобрать → создать черновик. Сбой изолирован (FAILED-job), сырьё сохраняется (карантин)."""
+    разобрать → создать черновик → (если auto_publish и безопасно) опубликовать.
+    Сбой изолирован (FAILED-job), сырьё сохраняется (карантин)."""
     # Пессимистичный старт: пока конвейер не завершился успешно, запись считается FAILED.
     # Так прерванный/упавший процесс не оставляет ложного «success» в аудите.
     job = IngestionJob.objects.create(
@@ -153,7 +154,20 @@ def ingest_target(target, *, client=None):
         log_lines.append(
             f"Разобрано узлов структуры: {len(parsed.articles)} (статей: {n_articles})."
         )
-        redaction = create_draft_from_parsed(target.document, parsed, raw_source=raw)
+        # текущую опубликованную редакцию фиксируем ДО создания черновика (для гейта)
+        current = Redaction.objects.filter(document=target.document, is_current=True).first()
+        try:
+            redaction = create_draft_from_parsed(
+                target.document,
+                parsed,
+                raw_source=raw,
+                redaction_date=parsed.detected_redaction_date,
+            )
+        except PublishedRedactionExists as exc:
+            # Редакция на эту дату уже опубликована — обновлять нечего, это не ошибка.
+            job.status = IngestionJob.Status.SKIPPED
+            log_lines.append(str(exc))
+            return _finish(job, log_lines)
         job.produced_redaction = redaction
         job.status = IngestionJob.Status.SUCCESS
         log_lines.append(f"Создан черновик редакции #{redaction.pk}.")
@@ -162,6 +176,22 @@ def ingest_target(target, *, client=None):
             log_lines.append(f"Предложено связей: {n_links}.")
         except Exception as link_exc:  # извлечение связей вторично — не валит приём
             log_lines.append(f"Извлечение связей не удалось: {link_exc}")
+        # авто-публикация (§17): только при флаге, извлечённой дате и пройденном гейте
+        if target.document.auto_publish:
+            if parsed.detected_redaction_date is None:
+                log_lines.append("Авто-публикация пропущена: не извлечена дата редакции.")
+            elif not _is_safe_to_publish(redaction, current):
+                log_lines.append(
+                    "Авто-публикация пропущена: гейт безопасности не пройден "
+                    "(0 статей или резкое падение против текущей)."
+                )
+            else:
+                redaction.publish()
+                log_lines.append(f"Авто-опубликована редакция #{redaction.pk}.")
+                try:
+                    extract_links_for_redaction(redaction)  # после публикации: самоссылки
+                except Exception as link_exc:
+                    log_lines.append(f"Переизвлечение связей не удалось: {link_exc}")
     except Exception as exc:  # изоляция: сбой одной цели не валит пакет
         job.status = IngestionJob.Status.FAILED
         job.error = f"{type(exc).__name__}: {exc}"
