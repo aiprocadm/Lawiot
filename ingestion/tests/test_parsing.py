@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import ingestion
@@ -163,3 +164,33 @@ def test_parse_structure_uppercase_headers():
     assert ("section", "I") in kinds
     assert ("chapter", "1") in kinds
     assert ("article", "1") in kinds
+
+
+# ---------------------------------------------------------------------------
+# detect_redaction_date
+# ---------------------------------------------------------------------------
+
+from ingestion.parsing import detect_redaction_date  # noqa: E402
+
+
+def test_detect_redaction_date_picks_max_citation_date():
+    text = (
+        "Одобрен 26 декабря 2001 года "
+        "(В редакции федеральных законов от 24.07.2002 № 97-ФЗ, "
+        "от 29.12.2025 № 999-ФЗ, от 30.06.2006 № 90-ФЗ)"
+    )
+    assert detect_redaction_date(text) == date(2025, 12, 29)
+
+
+def test_detect_redaction_date_handles_fkz_and_letter_N():
+    text = "часть дополнена (В редакции Федерального конституционного закона от 05.02.2014 N 2-ФКЗ)"
+    assert detect_redaction_date(text) == date(2014, 2, 5)
+
+
+def test_detect_redaction_date_ignores_bare_dates_without_law_number():
+    text = "Договор от 01.01.2099 действует со дня подписания."
+    assert detect_redaction_date(text) is None
+
+
+def test_detect_redaction_date_returns_none_when_no_citations():
+    assert detect_redaction_date("Статья 1. Без единой цитаты закона.") is None
