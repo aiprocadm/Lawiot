@@ -4,13 +4,14 @@ import httpx
 import pytest
 
 from documents.models import Article, Document, Redaction
-from documents.tests.factories import make_document, make_redaction
+from documents.tests.factories import make_article, make_document, make_redaction
 from ingestion.models import IngestionJob, RawSource
 from ingestion.parsing import parse_document
 from ingestion.services import (
     IngestionTarget,
     PublishedRedactionExists,
     ReparseYieldedNothing,
+    _is_safe_to_publish,
     compute_hash,
     content_changed,
     create_draft_from_parsed,
@@ -242,3 +243,46 @@ def test_create_draft_persists_hierarchy():
     assert chapter.parent_id == section.id
     assert article.parent_id == chapter.id
     assert article.anchor == "st-1"
+
+
+def _redaction_with_n_articles(n, **kwargs):
+    red = make_redaction(**kwargs)
+    for i in range(n):
+        make_article(redaction=red, number=str(i + 1), order=i + 1)
+    return red
+
+
+@pytest.mark.django_db
+def test_gate_blocks_zero_articles_and_empty_text():
+    new = make_redaction(full_text="")
+    assert _is_safe_to_publish(new, None) is False
+
+
+@pytest.mark.django_db
+def test_gate_allows_first_redaction_with_articles():
+    new = _redaction_with_n_articles(3)
+    assert _is_safe_to_publish(new, None) is True
+
+
+@pytest.mark.django_db
+def test_gate_allows_unstructured_text_when_no_current():
+    new = make_redaction(full_text="Длинный неструктурированный текст акта.")
+    assert _is_safe_to_publish(new, None) is True
+
+
+@pytest.mark.django_db
+def test_gate_blocks_sharp_drop_vs_current():
+    doc = make_document()
+    current = _redaction_with_n_articles(10, document=doc, redaction_date=date(2023, 1, 1))
+    new = _redaction_with_n_articles(3, document=doc, redaction_date=date(2024, 1, 1))
+    assert _is_safe_to_publish(new, current) is False  # 3 < 0.8 * 10
+
+
+@pytest.mark.django_db
+def test_gate_allows_equal_or_more_articles():
+    doc = make_document()
+    current = _redaction_with_n_articles(10, document=doc, redaction_date=date(2023, 1, 1))
+    same = _redaction_with_n_articles(10, document=doc, redaction_date=date(2024, 1, 1))
+    more = _redaction_with_n_articles(12, document=doc, redaction_date=date(2025, 1, 1))
+    assert _is_safe_to_publish(same, current) is True
+    assert _is_safe_to_publish(more, current) is True

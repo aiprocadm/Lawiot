@@ -10,6 +10,10 @@ from ingestion.links import extract_links_for_redaction
 from ingestion.models import IngestionJob, RawSource
 from ingestion.parsing import PARSER_VERSION, parse_document
 
+# Минимальная доля статей новой редакции от текущей при авто-публикации.
+# Резкое падение = вероятно обрезанный/ошибочный ответ источника — не публикуем.
+AUTOPUBLISH_MIN_RATIO = 0.8
+
 
 class PublishedRedactionExists(Exception):
     """Поднимается, когда приём попытался бы перезаписать опубликованную редакцию."""
@@ -99,6 +103,26 @@ def _finish(job, log_lines):
     job.finished_at = timezone.now()
     job.save()
     return job
+
+
+def _article_count(redaction):
+    return redaction.articles.filter(kind=Article.Kind.ARTICLE).count()
+
+
+def _is_safe_to_publish(new_redaction, current_redaction):
+    """True, если новую редакцию безопасно авто-публиковать (см. spec §4.3).
+    Защита от обрезанного/ошибочного ответа источника: 0 статей и пустой текст,
+    либо резкое падение числа статей против текущей опубликованной редакции."""
+    new_count = _article_count(new_redaction)
+    has_text = bool((new_redaction.full_text or "").strip())
+    if new_count == 0 and not has_text:
+        return False
+    if current_redaction is None:
+        return new_count >= 1 or has_text
+    current_count = _article_count(current_redaction)
+    if current_count == 0:
+        return True
+    return new_count >= AUTOPUBLISH_MIN_RATIO * current_count
 
 
 def ingest_target(target, *, client=None):
