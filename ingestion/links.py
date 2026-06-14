@@ -83,6 +83,18 @@ def find_citations(text):
     return list(seen.values())
 
 
+def _create_reference_link(document, target, context):
+    """Создать авто-предложенную (suggested) связь-ссылку document → target."""
+    Link.objects.create(
+        from_document=document,
+        to_document=target,
+        link_type=Link.LinkType.REFERENCES,
+        origin=Link.Origin.AUTO,
+        status=Link.Status.SUGGESTED,
+        context=context,
+    )
+
+
 def extract_links_for_redaction(redaction):
     """Извлечь цитаты из текста редакции и создать предложенные (suggested) авто-связи.
     Идемпотентно: прежние auto+suggested связи документа пересоздаются; подтверждённые
@@ -116,14 +128,7 @@ def extract_links_for_redaction(redaction):
             ).exists()
             if already:
                 continue
-            Link.objects.create(
-                from_document=document,
-                to_document=target,
-                link_type=Link.LinkType.REFERENCES,
-                origin=Link.Origin.AUTO,
-                status=Link.Status.SUGGESTED,
-                context=citation.context,
-            )
+            _create_reference_link(document, target, citation.context)
         else:
             if citation.number == document.official_number:
                 continue  # самоцитата без внешней цели
@@ -161,13 +166,6 @@ def extract_links_for_redaction(redaction):
         ).exists()
         if already:
             continue  # дедуп: номерная цитата уже создала связь к этой цели
-        Link.objects.create(
-            from_document=document,
-            to_document=target,
-            link_type=Link.LinkType.REFERENCES,
-            origin=Link.Origin.AUTO,
-            status=Link.Status.SUGGESTED,
-            context=citation.context,
-        )
+        _create_reference_link(document, target, citation.context)
         created += 1
     return created

@@ -175,7 +175,7 @@ def test_named_codex_resolves_when_in_corpus():
     red = make_redaction(src, full_text="Проводится в соответствии с Трудовым кодексом.")
     n = extract_links_for_redaction(red)
     assert n == 1
-    link = Link.objects.get(from_document=src)
+    link = Link.objects.get(from_document=src, to_document=tk)
     assert link.to_document == tk
     assert link.link_type == Link.LinkType.REFERENCES
     assert link.origin == Link.Origin.AUTO
