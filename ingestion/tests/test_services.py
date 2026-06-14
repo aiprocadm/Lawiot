@@ -13,7 +13,6 @@ from ingestion.services import (
     ReparseYieldedNothing,
     _is_safe_to_publish,
     compute_hash,
-    content_changed,
     create_draft_from_parsed,
     import_manual,
     ingest_target,
@@ -42,14 +41,6 @@ def test_store_raw_source_sets_hash():
     rs = store_raw_source("k", b"hello", "text/plain", "https://e.test/")
     assert rs.content_hash == compute_hash(b"hello")
     assert RawSource.objects.count() == 1
-
-
-@pytest.mark.django_db
-def test_content_changed_detects_new_then_same():
-    assert content_changed("k", compute_hash(b"v1")) is True
-    store_raw_source("k", b"v1", "text/plain", "")
-    assert content_changed("k", compute_hash(b"v1")) is False
-    assert content_changed("k", compute_hash(b"v2")) is True
 
 
 @pytest.mark.django_db

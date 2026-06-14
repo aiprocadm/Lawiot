@@ -38,3 +38,29 @@ def test_store_raw_source_sets_text_hash():
     rs = store_raw_source("k", HTML_A, "text/html", "https://e.test/")
     assert rs.text_hash == compute_text_hash(HTML_A, "text/html")
     assert rs.content_hash  # сырой хэш по-прежнему заполнен
+
+
+@pytest.mark.django_db
+def test_text_changed_new_then_same():
+    from ingestion.services import store_raw_source, text_changed
+
+    h = compute_text_hash(HTML_A, "text/html")
+    assert text_changed("k", h) is True
+    store_raw_source("k", HTML_A, "text/html", "", text_hash=h)
+    assert text_changed("k", h) is False
+    assert text_changed("k", compute_text_hash(HTML_C, "text/html")) is True
+
+
+@pytest.mark.django_db
+def test_ingest_target_skips_on_markup_only_churn():
+    from documents.tests.factories import make_document
+    from ingestion.models import IngestionJob, RawSource
+    from ingestion.services import IngestionTarget, ingest_target
+
+    doc = make_document(slug="churn", official_number="x")
+    t = IngestionTarget(document=doc, url="https://e.test/x", target_key="churn")
+    first = ingest_target(t, client=_client_returning(HTML_A))
+    second = ingest_target(t, client=_client_returning(HTML_B))  # отличается только токеном
+    assert first.status == IngestionJob.Status.SUCCESS
+    assert second.status == IngestionJob.Status.SKIPPED
+    assert RawSource.objects.filter(target_key="churn").count() == 1

@@ -8,7 +8,7 @@ from documents.models import Article, Document, Redaction
 from ingestion.fetching import fetch
 from ingestion.links import extract_links_for_redaction
 from ingestion.models import IngestionJob, RawSource
-from ingestion.parsing import PARSER_VERSION, html_to_text, parse_document
+from ingestion.parsing import PARSER_VERSION, html_to_text, parse_document, parse_text
 
 # Минимальная доля статей новой редакции от текущей при авто-публикации.
 # Резкое падение = вероятно обрезанный/ошибочный ответ источника — не публикуем.
@@ -55,10 +55,10 @@ def store_raw_source(target_key, content, content_type="", source_url="", text_h
     )
 
 
-def content_changed(target_key, content_hash):
-    """True, если для цели ещё нет сырья или хэш отличается от последнего."""
+def text_changed(target_key, text_hash) -> bool:
+    """True, если для цели ещё нет сырья или хэш нормализованного текста отличается."""
     latest = RawSource.objects.filter(target_key=target_key).order_by("-fetched_at").first()
-    return latest is None or latest.content_hash != content_hash
+    return latest is None or latest.text_hash != text_hash
 
 
 def create_draft_from_parsed(document, parsed, *, raw_source=None, redaction_date=None):
@@ -151,16 +151,21 @@ def ingest_target(target, *, client=None):
     try:
         result = fetch(target.url, client=client)
         log_lines.append(f"Скачано {len(result.content)} байт с {result.source_url}.")
-        content_hash = compute_hash(result.content)
-        if not content_changed(target.target_key, content_hash):
+        text = html_to_text(result.content, result.content_type)
+        text_hash = text_digest(text)
+        if not text_changed(target.target_key, text_hash):
             job.status = IngestionJob.Status.SKIPPED
-            log_lines.append("Содержимое не изменилось — пропуск.")
+            log_lines.append("Нормализованный текст не изменился — пропуск.")
             return _finish(job, log_lines)
         raw = store_raw_source(
-            target.target_key, result.content, result.content_type, result.source_url
+            target.target_key,
+            result.content,
+            result.content_type,
+            result.source_url,
+            text_hash=text_hash,
         )
         job.raw_source = raw
-        parsed = parse_document(result.content, result.content_type)
+        parsed = parse_text(text)
         n_articles = sum(1 for a in parsed.articles if a.kind == "article")
         log_lines.append(
             f"Разобрано узлов структуры: {len(parsed.articles)} (статей: {n_articles})."
