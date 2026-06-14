@@ -1,3 +1,5 @@
+from datetime import date
+
 import httpx
 import pytest
 
@@ -64,3 +66,69 @@ def test_ingest_target_skips_on_markup_only_churn():
     assert first.status == IngestionJob.Status.SUCCESS
     assert second.status == IngestionJob.Status.SKIPPED
     assert RawSource.objects.filter(target_key="churn").count() == 1
+
+
+# Две сводные редакции одного акта. R2 = изменён текст ст.1 + новая дата поправки.
+R1_HTML = (
+    "<h1>Кодекс</h1>"
+    "<p>(В редакции Федерального закона от 29.12.2025 № 500-ФЗ)</p>"
+    "<p>Статья 1. Предмет</p><p>старый текст</p>"
+    "<p>Статья 2. Сфера</p><p>текст два</p>"
+).encode("utf-8")
+
+R2_HTML = (
+    "<h1>Кодекс</h1>"
+    "<p>(В редакции Федерального закона от 15.01.2026 № 5-ФЗ)</p>"
+    "<p>Статья 1. Предмет</p><p>НОВЫЙ текст</p>"
+    "<p>Статья 2. Сфера</p><p>текст два</p>"
+).encode("utf-8")
+
+
+@pytest.mark.django_db
+def test_second_redaction_publishes_supersedes_and_diffs():
+    from documents.diffing import diff_articles
+    from documents.models import Redaction
+    from documents.tests.factories import make_document
+    from ingestion.models import IngestionJob
+    from ingestion.services import IngestionTarget, ingest_target
+
+    doc = make_document(slug="e2e", official_number="500-ФЗ", auto_publish=True)
+    t = IngestionTarget(document=doc, url="https://e.test/e2e", target_key="e2e")
+
+    # R1 — первая публикация (текущей нет → гейт пропускает)
+    job1 = ingest_target(t, client=_client_returning(R1_HTML))
+    assert job1.status == IngestionJob.Status.SUCCESS
+    r1 = Redaction.objects.get(document=doc, redaction_date=date(2025, 12, 29))
+    assert r1.review_status == Redaction.ReviewStatus.PUBLISHED
+    assert r1.is_current is True
+
+    # R2 — новая редакция (новый текст ст.1, новая дата → новый text_hash)
+    job2 = ingest_target(t, client=_client_returning(R2_HTML))
+    assert job2.status == IngestionJob.Status.SUCCESS
+    r2 = Redaction.objects.get(document=doc, redaction_date=date(2026, 1, 15))
+    assert r2.review_status == Redaction.ReviewStatus.PUBLISHED
+    assert r2.is_current is True
+    assert r2.published_at is not None
+
+    r1.refresh_from_db()
+    assert r1.is_current is False  # вытеснена
+
+    # diff R1→R2: ст.1 изменена, ст.2 без изменений
+    diffs = {
+        d.number: d.status
+        for d in diff_articles(list(r1.articles.all()), list(r2.articles.all()))
+    }
+    assert diffs["1"] == "changed"
+    assert diffs["2"] == "same"
+
+    # R2 в ленте опубликованных
+    published_pks = list(
+        Redaction.objects.filter(review_status=Redaction.ReviewStatus.PUBLISHED).values_list(
+            "pk", flat=True
+        )
+    )
+    assert r2.pk in published_pks
+
+    # повторный приём тем же R2 → текст не изменился → SKIPPED
+    job3 = ingest_target(t, client=_client_returning(R2_HTML))
+    assert job3.status == IngestionJob.Status.SKIPPED
