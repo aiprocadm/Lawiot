@@ -149,3 +149,17 @@ def test_recognizes_koap_noun_first_form():
     text = "ответственность по Кодексу Российской Федерации об административных правонарушениях"
     names = {c.name for c in find_named_citations(text)}
     assert "Кодекс об административных правонарушениях" in names
+
+
+def test_koap_nbsp_in_rf_name():
+    # неразрывный пробел (\xa0) между «Российской» и «Федерации» — частотен в корпусе ИПС
+    text = "Кодексу Российской\xa0Федерации об административных правонарушениях"
+    names = {c.name for c in find_named_citations(text)}
+    assert "Кодекс об административных правонарушениях" in names
+
+
+def test_koap_short_form_without_rf_name():
+    # короткая форма без «Российской Федерации» тоже распознаётся
+    text = "ответственность по Кодексу об административных правонарушениях наступает"
+    names = {c.name for c in find_named_citations(text)}
+    assert "Кодекс об административных правонарушениях" in names
