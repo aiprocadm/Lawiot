@@ -8,7 +8,7 @@ from documents.models import Article, Document, Redaction
 from ingestion.fetching import fetch
 from ingestion.links import extract_links_for_redaction
 from ingestion.models import IngestionJob, RawSource
-from ingestion.parsing import PARSER_VERSION, parse_document
+from ingestion.parsing import PARSER_VERSION, html_to_text, parse_document
 
 # Минимальная доля статей новой редакции от текущей при авто-публикации.
 # Резкое падение = вероятно обрезанный/ошибочный ответ источника — не публикуем.
@@ -32,6 +32,15 @@ class IngestionTarget:
 
 def compute_hash(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
+
+
+def text_digest(text: str) -> str:
+    """SHA-256 нормализованного текста. Триггер «новая редакция» (стабилен к дребезгу разметки)."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def compute_text_hash(content: bytes, content_type: str = "") -> str:
+    return text_digest(html_to_text(content, content_type))
 
 
 def store_raw_source(target_key, content, content_type="", source_url=""):
