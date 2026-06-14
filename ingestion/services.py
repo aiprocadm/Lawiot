@@ -39,7 +39,8 @@ def text_digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def compute_text_hash(content: bytes, content_type: str = "") -> str:
+def compute_text_hash(content: bytes, content_type: str = "text/html") -> str:
+    """SHA-256 нормализованного текста содержимого (стабильный триггер изменения редакции)."""
     return text_digest(html_to_text(content, content_type))
 
 
