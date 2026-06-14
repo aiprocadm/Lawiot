@@ -163,3 +163,54 @@ def test_koap_short_form_without_rf_name():
     text = "ответственность по Кодексу об административных правонарушениях наступает"
     names = {c.name for c in find_named_citations(text)}
     assert "Кодекс об административных правонарушениях" in names
+
+
+@pytest.mark.django_db
+def test_named_codex_resolves_when_in_corpus():
+    # tk-rf в корпусе (title = «Трудовой кодекс …»), источник цитирует его по имени
+    tk = make_document(slug="tk", title="Трудовой кодекс Российской Федерации",
+                       official_number="197-ФЗ")
+    src = make_document(slug="src-426", title="О специальной оценке условий труда",
+                        official_number="426-ФЗ")
+    red = make_redaction(src, full_text="Проводится в соответствии с Трудовым кодексом.")
+    n = extract_links_for_redaction(red)
+    assert n == 1
+    link = Link.objects.get(from_document=src)
+    assert link.to_document == tk
+    assert link.link_type == Link.LinkType.REFERENCES
+    assert link.origin == Link.Origin.AUTO
+    assert link.status == Link.Status.SUGGESTED
+    assert "кодекс" in link.context.lower()
+
+
+@pytest.mark.django_db
+def test_named_codex_not_created_when_absent_from_corpus():
+    # кодекса нет в корпусе → связь НЕ создаётся (только-в-корпусе)
+    src = make_document(slug="src-only", title="О специальной оценке условий труда",
+                        official_number="426-ФЗ")
+    red = make_redaction(src, full_text="Регулируется Гражданским кодексом.")
+    assert extract_links_for_redaction(red) == 0
+    assert Link.objects.filter(from_document=src).count() == 0
+
+
+@pytest.mark.django_db
+def test_named_and_numeric_citation_dedup_to_one_link():
+    # акт цитирует и «197-ФЗ», и «Трудовым кодексом» — оба → tk-rf, но ровно одна связь
+    tk = make_document(slug="tk2", title="Трудовой кодекс Российской Федерации",
+                       official_number="197-ФЗ")
+    src = make_document(slug="src-dup", title="О специальной оценке условий труда",
+                        official_number="426-ФЗ")
+    red = make_redaction(src, full_text="См. 197-ФЗ и Трудовой кодекс одновременно.")
+    extract_links_for_redaction(red)
+    links = Link.objects.filter(from_document=src, to_document=tk)
+    assert links.count() == 1
+
+
+@pytest.mark.django_db
+def test_named_codex_skips_self_reference():
+    # сам ТК РФ упоминает «Трудового кодекса» в преамбуле → не ссылаемся на себя
+    tk = make_document(slug="tk-self", title="Трудовой кодекс Российской Федерации",
+                       official_number="197-ФЗ")
+    red = make_redaction(tk, full_text="Настоящий Трудовой кодекс регулирует отношения.")
+    assert extract_links_for_redaction(red) == 0
+    assert Link.objects.filter(from_document=tk).count() == 0

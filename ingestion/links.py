@@ -144,4 +144,30 @@ def extract_links_for_redaction(redaction):
                 context=citation.context,
             )
         created += 1
+
+    # Именные цитаты кодексов: резолвим по Document.title, только если кодекс в корпусе.
+    for citation in find_named_citations(text):
+        target = (
+            Document.objects.filter(**_CODEX_TITLE_FILTERS[citation.name])
+            .exclude(pk=document.pk)  # не ссылаемся на самих себя
+            .first()
+        )
+        if target is None:
+            continue  # кодекса нет в корпусе → связь не создаём
+        already = Link.objects.filter(
+            from_document=document,
+            to_document=target,
+            link_type=Link.LinkType.REFERENCES,
+        ).exists()
+        if already:
+            continue  # дедуп: номерная цитата уже создала связь к этой цели
+        Link.objects.create(
+            from_document=document,
+            to_document=target,
+            link_type=Link.LinkType.REFERENCES,
+            origin=Link.Origin.AUTO,
+            status=Link.Status.SUGGESTED,
+            context=citation.context,
+        )
+        created += 1
     return created
