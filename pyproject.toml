@@ -2,6 +2,13 @@
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py", "tests.py"]
 addopts = "-ra"
+filterwarnings = [
+    # FORMS_URLFIELD_ASSUME_HTTPS — намеренный forward-compat флаг (см. config/settings.py).
+    # На Django 5.2 это корректная настройка; снимем её при апгрейде до 6.0.
+    "ignore:The FORMS_URLFIELD_ASSUME_HTTPS transitional setting is deprecated",
+    # WhiteNoise: в тестах collectstatic не запускается, поэтому STATIC_ROOT отсутствует.
+    "ignore:No directory at",
+]
 
 [tool.ruff]
 line-length = 100
