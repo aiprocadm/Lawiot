@@ -2,7 +2,11 @@ import pytest
 
 from documents.models import Link
 from documents.tests.factories import make_article, make_document, make_redaction
-from ingestion.links import extract_links_for_redaction, find_citations
+from ingestion.links import (
+    extract_links_for_redaction,
+    find_citations,
+    find_named_citations,
+)
 
 
 def test_finds_fz_and_fkz_numbers():
@@ -110,3 +114,38 @@ def test_reextraction_preserves_and_does_not_duplicate_confirmed():
     links = Link.objects.filter(from_document=src, to_document=target)
     assert links.count() == 1  # дубль не создан
     assert links.first().status == Link.Status.CONFIRMED  # подтверждение сохранено
+
+
+def test_finds_codex_by_name_all_cases():
+    text = "регулируется Трудовым кодексом и Трудового кодекса, см. Трудовой кодекс."
+    names = {c.name for c in find_named_citations(text)}
+    assert names == {"Трудовой кодекс"}
+
+
+def test_named_citation_is_canonical_not_declined():
+    # хранится каноническое имя, а не пойманная падежная форма
+    (cite,) = find_named_citations("в соответствии с Трудовым кодексом")
+    assert cite.name == "Трудовой кодекс"
+
+
+def test_named_citation_ignores_non_codex_phrases():
+    text = "Заключается трудовой договор, ведётся трудовая книжка."
+    assert find_named_citations(text) == []
+
+
+def test_named_citation_captures_context():
+    (cite,) = find_named_citations("Изменения внесены Трудовым кодексом о труде.")
+    assert "кодекс" in cite.context.lower()
+    assert "труде" in cite.context
+
+
+def test_finds_multiple_distinct_codices():
+    text = "применяются Трудовой кодекс и Гражданский кодекс совместно"
+    names = {c.name for c in find_named_citations(text)}
+    assert names == {"Трудовой кодекс", "Гражданский кодекс"}
+
+
+def test_recognizes_koap_noun_first_form():
+    text = "ответственность по Кодексу Российской Федерации об административных правонарушениях"
+    names = {c.name for c in find_named_citations(text)}
+    assert "Кодекс об административных правонарушениях" in names

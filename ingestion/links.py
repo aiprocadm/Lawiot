@@ -7,6 +7,59 @@ from documents.models import Document, Link
 CITATION_RE = re.compile(r"\b(\d{1,4}-(?:ФКЗ|ФЗ))\b")
 CONTEXT_WINDOW = 60
 
+# Реестр кодексов РФ: (regex по склонениям имени, каноническое имя, фильтр по Document.title).
+# Стем-паттерны терпимы к падежам: «Трудов-ой/-ого/-ым кодекс-∅/-а/-ом». Резолв
+# «только-в-корпусе» (см. extract_links_for_redaction) делает лишние записи безвредными —
+# резолвятся лишь те кодексы, что реально в корпусе. КоАП — особый («кодекс» спереди).
+CODEX_PATTERNS = [
+    (re.compile(r"\bтрудов\w+\s+кодекс\w*", re.I), "Трудовой кодекс",
+     {"title__istartswith": "Трудовой кодекс"}),
+    (re.compile(r"\bгражданск\w+\s+кодекс\w*", re.I), "Гражданский кодекс",
+     {"title__istartswith": "Гражданский кодекс"}),
+    (re.compile(r"\bналогов\w+\s+кодекс\w*", re.I), "Налоговый кодекс",
+     {"title__istartswith": "Налоговый кодекс"}),
+    (re.compile(r"\bуголовн\w+\s+кодекс\w*", re.I), "Уголовный кодекс",
+     {"title__istartswith": "Уголовный кодекс"}),
+    (re.compile(r"\bземельн\w+\s+кодекс\w*", re.I), "Земельный кодекс",
+     {"title__istartswith": "Земельный кодекс"}),
+    (re.compile(r"\bжилищн\w+\s+кодекс\w*", re.I), "Жилищный кодекс",
+     {"title__istartswith": "Жилищный кодекс"}),
+    (re.compile(r"\bсемейн\w+\s+кодекс\w*", re.I), "Семейный кодекс",
+     {"title__istartswith": "Семейный кодекс"}),
+    (re.compile(r"\bбюджетн\w+\s+кодекс\w*", re.I), "Бюджетный кодекс",
+     {"title__istartswith": "Бюджетный кодекс"}),
+    (re.compile(
+        r"\bкодекс\w*\s+(?:российской федерации\s+)?об\s+административных\s+правонарушениях",
+        re.I,
+    ), "Кодекс об административных правонарушениях",
+     {"title__icontains": "об административных правонарушениях"}),
+]
+
+# Каноническое имя → фильтр резолвинга по Document.title (единый источник — CODEX_PATTERNS).
+_CODEX_TITLE_FILTERS = {name: title_filter for _, name, title_filter in CODEX_PATTERNS}
+
+
+@dataclass(frozen=True)
+class NamedCitation:
+    name: str  # каноническое имя кодекса, напр. «Трудовой кодекс»
+    context: str  # очищенный фрагмент текста вокруг первого вхождения
+
+
+def find_named_citations(text):
+    """Найти упоминания кодексов по имени (во всех падежах). Чистая функция (без БД/сети).
+    По одной NamedCitation на уникальное каноническое имя — с контекстом первого вхождения."""
+    text = text or ""
+    found: list[NamedCitation] = []
+    for regex, name, _ in CODEX_PATTERNS:
+        match = regex.search(text)
+        if match is None:
+            continue
+        start = max(0, match.start() - CONTEXT_WINDOW)
+        end = min(len(text), match.end() + CONTEXT_WINDOW)
+        snippet = " ".join(text[start:end].split())
+        found.append(NamedCitation(name=name, context=snippet))
+    return found
+
 
 @dataclass(frozen=True)
 class Citation:
