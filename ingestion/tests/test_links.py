@@ -214,3 +214,35 @@ def test_named_codex_skips_self_reference():
     red = make_redaction(tk, full_text="Настоящий Трудовой кодекс регулирует отношения.")
     assert extract_links_for_redaction(red) == 0
     assert Link.objects.filter(from_document=tk).count() == 0
+
+
+@pytest.mark.django_db
+def test_named_codex_reextraction_is_idempotent():
+    # повторный прогон по именной цитате не плодит дубли
+    make_document(slug="tk-idem", title="Трудовой кодекс Российской Федерации",
+                  official_number="197-ФЗ")
+    src = make_document(slug="src-idem", title="О специальной оценке условий труда",
+                        official_number="426-ФЗ")
+    red = make_redaction(src, full_text="В соответствии с Трудовым кодексом.")
+    extract_links_for_redaction(red)
+    extract_links_for_redaction(red)
+    assert Link.objects.filter(from_document=src).count() == 1
+
+
+@pytest.mark.django_db
+def test_named_codex_reextraction_preserves_confirmed():
+    # подтверждённую куратором именную связь повторное извлечение сохраняет, не дублирует
+    tk = make_document(slug="tk-conf", title="Трудовой кодекс Российской Федерации",
+                       official_number="197-ФЗ")
+    src = make_document(slug="src-conf", title="О специальной оценке условий труда",
+                        official_number="426-ФЗ")
+    red = make_redaction(src, full_text="В соответствии с Трудовым кодексом.")
+    Link.objects.create(
+        from_document=src, to_document=tk,
+        link_type=Link.LinkType.REFERENCES,
+        origin=Link.Origin.AUTO, status=Link.Status.CONFIRMED,
+    )
+    extract_links_for_redaction(red)
+    links = Link.objects.filter(from_document=src, to_document=tk)
+    assert links.count() == 1
+    assert links.first().status == Link.Status.CONFIRMED
