@@ -188,3 +188,23 @@ def test_detect_redaction_date_ignores_bare_dates_without_law_number():
 
 def test_detect_redaction_date_returns_none_when_no_citations():
     assert detect_redaction_date("Статья 1. Без единой цитаты закона.") is None
+
+
+def test_parse_text_parses_already_normalized_text():
+    from ingestion.parsing import parse_text
+
+    text = "Кодекс\nСтатья 1. Цели\nтекст статьи"
+    parsed = parse_text(text)
+    assert parsed.full_text == text
+    assert parsed.title == "Кодекс"
+    nums = [a.number for a in parsed.articles if a.kind == "article"]
+    assert nums == ["1"]
+
+
+def test_parse_document_delegates_to_parse_text():
+    from ingestion.parsing import parse_document, parse_text
+
+    html = b"<p>\xd0\x9a\xd0\xbe\xd0\xb4\xd0\xb5\xd0\xba\xd1\x81</p><p>\xd0\xa1\xd1\x82\xd0\xb0\xd1\x82\xd1\x8c\xd1\x8f 1. X</p><p>t</p>"
+    doc = parse_document(html, "text/html")
+    assert doc.full_text == parse_text(doc.full_text).full_text
+    assert [a.number for a in doc.articles] == ["1"]
