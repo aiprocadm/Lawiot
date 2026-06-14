@@ -134,3 +134,31 @@ def test_real_sout426_ingest_creates_clean_draft():
     assert red.articles.filter(kind=Article.Kind.CHAPTER).count() == 4
     # без «сирот»: у каждой статьи есть родительская глава
     assert not red.articles.filter(kind=Article.Kind.ARTICLE, parent__isnull=True).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.skipif(
+    not (FIXTURES / "sout_426fz_real.html").exists(),
+    reason="реальная фикстура 426-ФЗ не захвачена",
+)
+def test_real_sout426_links_to_tk_rf_by_name():
+    """Закрывает пробой §9: 426-ФЗ упоминает «Трудовой кодекс» по имени (а не «197-ФЗ»).
+    Когда tk-rf уже в корпусе, сквозной ingest_target должен создать резолвленную
+    suggested-связь 426-ФЗ → ТК РФ через find_named_citations."""
+    from documents.models import Link
+
+    tk = make_document(slug="tk-rf", title="Трудовой кодекс Российской Федерации",
+                       official_number="197-ФЗ")
+    content = (FIXTURES / "sout_426fz_real.html").read_bytes()
+    doc = make_document(slug="sout-426-fz", doc_type="federal_law",
+                        title="О специальной оценке условий труда",
+                        official_number="426-ФЗ", auto_publish=False)
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+
+    ingest_target(target, client=_client_returning(content))
+
+    link = Link.objects.get(from_document=doc, to_document=tk)
+    assert link.link_type == Link.LinkType.REFERENCES
+    assert link.origin == Link.Origin.AUTO
+    assert link.status == Link.Status.SUGGESTED
+    assert "кодекс" in link.context.lower()
