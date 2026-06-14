@@ -1,5 +1,5 @@
 import httpx
-import pytest  # noqa: F401  # используется в последующих задачах этого файла
+import pytest
 
 from ingestion.parsing import html_to_text
 from ingestion.services import compute_text_hash, text_digest
@@ -29,3 +29,12 @@ def test_text_hash_detects_real_text_change():
 
 def test_text_digest_matches_compute_text_hash():
     assert text_digest(html_to_text(HTML_A, "text/html")) == compute_text_hash(HTML_A, "text/html")
+
+
+@pytest.mark.django_db
+def test_store_raw_source_sets_text_hash():
+    from ingestion.services import store_raw_source
+
+    rs = store_raw_source("k", HTML_A, "text/html", "https://e.test/")
+    assert rs.text_hash == compute_text_hash(HTML_A, "text/html")
+    assert rs.content_hash  # сырой хэш по-прежнему заполнен

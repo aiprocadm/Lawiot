@@ -7,6 +7,7 @@ class RawSource(models.Model):
     target_key = models.CharField(max_length=255)
     content = models.BinaryField()
     content_hash = models.CharField(max_length=64, db_index=True)
+    text_hash = models.CharField(max_length=64, blank=True, db_index=True)
     content_type = models.CharField(max_length=100, blank=True)
     source_url = models.URLField(blank=True)
     fetched_at = models.DateTimeField(auto_now_add=True)

@@ -44,11 +44,12 @@ def compute_text_hash(content: bytes, content_type: str = "text/html") -> str:
     return text_digest(html_to_text(content, content_type))
 
 
-def store_raw_source(target_key, content, content_type="", source_url=""):
+def store_raw_source(target_key, content, content_type="", source_url="", text_hash=None):
     return RawSource.objects.create(
         target_key=target_key,
         content=content,
         content_hash=compute_hash(content),
+        text_hash=text_hash if text_hash is not None else compute_text_hash(content, content_type),
         content_type=content_type,
         source_url=source_url,
     )
