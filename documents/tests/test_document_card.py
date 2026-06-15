@@ -49,9 +49,7 @@ def _published_doc_with_structure():
         published_at=timezone.now(),
     )
     sec = Article.objects.create(redaction=red, kind="section", number="I", order=1)
-    ch = Article.objects.create(
-        redaction=red, kind="chapter", number="1", order=2, parent=sec
-    )
+    ch = Article.objects.create(redaction=red, kind="chapter", number="1", order=2, parent=sec)
     Article.objects.create(
         redaction=red, kind="article", number="1", title="Ст 1", text="t", order=3, parent=ch
     )
