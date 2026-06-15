@@ -131,9 +131,9 @@ def detect_redaction_date(text: str) -> date | None:
     return max(dates) if dates else None
 
 
-def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDocument:
-    """Полный разбор: текст + список статей + заголовок-эвристика + реквизиты."""
-    text = html_to_text(content, content_type)
+def parse_text(text: str) -> ParsedDocument:
+    """Разбор УЖЕ нормализованного текста (результат html_to_text):
+    структура (разделы/главы/статьи) + заголовок-эвристика + реквизиты."""
     articles = parse_structure(text)
     title = detect_title(text)
     num = NUMBER_HINT_RE.search(text)
@@ -146,6 +146,11 @@ def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDoc
         detected_date=dt.group(1) if dt else "",
         detected_redaction_date=detect_redaction_date(text),
     )
+
+
+def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDocument:
+    """Полный разбор: нормализовать содержимое и разобрать (тонкая обёртка над parse_text)."""
+    return parse_text(html_to_text(content, content_type))
 
 
 def parse_structure(text: str) -> list[ParsedArticle]:
