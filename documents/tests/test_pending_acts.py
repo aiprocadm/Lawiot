@@ -64,6 +64,24 @@ def test_is_resolved_false_when_number_matches_but_doc_type_differs():
 
 
 @pytest.mark.django_db
+def test_is_resolved_false_when_current_but_draft():
+    # is_current=True, но статус DRAFT → не разрешён: нужны ОБА условия
+    # (страховка инварианта is_resolved; через create() флаги можно выставить врозь).
+    pa = PendingAct.objects.create(
+        slug="zanyatost-565-fz",
+        title="О занятости населения в Российской Федерации",
+        official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    doc = make_document(
+        slug="zanyatost-565-fz", official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    make_redaction(document=doc, review_status=Redaction.ReviewStatus.DRAFT, is_current=True)
+    assert pa.is_resolved is False
+
+
+@pytest.mark.django_db
 def test_seed_corpus_materializes_pending_acts():
     from django.core.management import call_command
 
