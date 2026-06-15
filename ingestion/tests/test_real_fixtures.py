@@ -66,6 +66,25 @@ def test_sout_426fz_real_fixture_structure():
 
 
 @pytest.mark.skipif(
+    not (FIXTURES / "prof_10fz_real.html").exists(),
+    reason="реальная фикстура 10-ФЗ не захвачена",
+)
+def test_prof10fz_real_fixture_structure():
+    # ФЗ с главами РИМСКИМИ цифрами (Глава I … Глава VI): 6 глав, 33 статьи.
+    # Раньше CHAPTER_RE знал только арабские номера → статьи висели «сиротами».
+    content = (FIXTURES / "prof_10fz_real.html").read_bytes()
+    parsed = parse_document(content, "text/html")
+    sections = [n for n in parsed.articles if n.kind == "section"]
+    chapters = [n for n in parsed.articles if n.kind == "chapter"]
+    articles = [n for n in parsed.articles if n.kind == "article"]
+    assert sections == []
+    assert [c.number for c in chapters] == ["I", "II", "III", "IV", "V", "VI"]
+    assert len(articles) >= 33
+    assert all(a.parent_order is not None for a in articles)  # без «сирот»
+    assert "профессиональных союзах" in parsed.title.lower()
+
+
+@pytest.mark.skipif(
     not (FIXTURES / "tk_rf_real.html").exists(),
     reason="реальная фикстура ТК РФ не захвачена",
 )
@@ -162,3 +181,36 @@ def test_real_sout426_links_to_tk_rf_by_name():
     assert link.origin == Link.Origin.AUTO
     assert link.status == Link.Status.SUGGESTED
     assert "кодекс" in link.context.lower()
+
+
+@pytest.mark.django_db
+@pytest.mark.skipif(
+    not (FIXTURES / "prof_10fz_real.html").exists(),
+    reason="реальная фикстура 10-ФЗ не захвачена",
+)
+def test_real_prof10_ingest_creates_clean_draft():
+    """Приёмка парсера на 3-м акте корпуса (10-ФЗ о профсоюзах, главы римскими
+    цифрами): сквозной ingest_target на ЖИВОЙ фикстуре при auto_publish=False даёт
+    ЧИСТЫЙ ЧЕРНОВИК с корректной структурой — 6 глав, ≥33 статьи, без «сирот».
+    Обосновывает auto_ingest=True для prof-10-fz в сиде (черновики для куратора)."""
+    content = (FIXTURES / "prof_10fz_real.html").read_bytes()
+    doc = make_document(
+        slug="prof-10-fz",
+        doc_type="federal_law",
+        title="О профессиональных союзах, их правах и гарантиях деятельности",
+        official_number="10-ФЗ",
+        auto_publish=False,
+    )
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+
+    job = ingest_target(target, client=_client_returning(content))
+
+    assert job.status == IngestionJob.Status.SUCCESS
+    red = Redaction.objects.get(document=doc)
+    # auto_publish=False → остаётся черновиком, текущим не становится
+    assert red.review_status == Redaction.ReviewStatus.DRAFT
+    assert red.is_current is False
+    assert red.articles.filter(kind=Article.Kind.ARTICLE).count() >= 33
+    assert red.articles.filter(kind=Article.Kind.CHAPTER).count() == 6
+    # без «сирот»: у каждой статьи есть родительская глава
+    assert not red.articles.filter(kind=Article.Kind.ARTICLE, parent__isnull=True).exists()
