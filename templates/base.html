@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.2"></script>
   {% block extra_head %}{% endblock %}
+  <style>
+  .status-badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 0.4rem;
+    font-size: 0.85em;
+    color: #fff;
+  }
+  .status-in_force { background: #2e7d32; }
+  .status-repealed { background: #c62828; }
+  .status-not_in_force { background: #757575; }
+  .passport dt { font-weight: 600; }
+  </style>
 </head>
 <body>
   <main class="container">
