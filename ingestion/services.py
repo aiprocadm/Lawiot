@@ -240,7 +240,8 @@ def reparse_redaction(redaction):
     raw = redaction.raw_source
     if raw is None:
         raise ValueError("У редакции нет сохранённого RawSource — нечего переразбирать.")
-    parsed = parse_document(bytes(raw.content), raw.content_type)
+    text = html_to_text(bytes(raw.content), raw.content_type)
+    parsed = parse_text(text)
     if not parsed.articles and redaction.articles.exists():
         raise ReparseYieldedNothing(
             "Новый разбор дал 0 статей при наличии прежних — операция отменена."
