@@ -1,8 +1,9 @@
 import datetime
 
 import pytest
+from django.utils import timezone
 
-from documents.models import Document
+from documents.models import Article, Document, Redaction
 from documents.seed.labor_law import SEED_ACTS
 
 
@@ -28,12 +29,6 @@ def test_seed_acts_have_requisite_dates():
     assert by_slug["tk-rf"]["official_pub_date"] == datetime.date(2001, 12, 31)
     assert by_slug["sout-426-fz"]["sign_date"] == datetime.date(2013, 12, 28)
     assert by_slug["sout-426-fz"]["official_pub_date"] == datetime.date(2013, 12, 30)
-
-
-from django.test import Client
-from django.utils import timezone
-
-from documents.models import Article, Redaction
 
 
 def _published_doc_with_structure():
