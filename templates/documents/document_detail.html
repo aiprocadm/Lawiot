@@ -5,12 +5,24 @@
 <article>
   <header>
     <h1>{{ document.title }}</h1>
-    <p>
-      <strong>{{ document.get_doc_type_display }}</strong> № {{ document.official_number }}<br>
-      Орган: {{ document.issuing_body|default:"—" }}<br>
-      Статус: {{ document.get_status_display }}<br>
-      Редакция от: {{ redaction.redaction_date }}
-    </p>
+    <dl class="passport">
+      <dt>Вид документа</dt><dd>{{ document.get_doc_type_display }}</dd>
+      <dt>Номер</dt><dd>{{ document.official_number|default:"—" }}</dd>
+      <dt>Принявший орган</dt><dd>{{ document.issuing_body|default:"—" }}</dd>
+      <dt>Дата подписания</dt><dd>{{ document.sign_date|date:"d.m.Y"|default:"—" }}</dd>
+      <dt>Дата опубликования</dt><dd>{{ document.official_pub_date|date:"d.m.Y"|default:"—" }}</dd>
+      <dt>Статус</dt>
+      <dd><span class="status-badge status-{{ document.status }}">{{ document.get_status_display }}</span></dd>
+      <dt>Действующая редакция</dt><dd>{{ redaction.redaction_date|date:"d.m.Y" }}</dd>
+      <dt>Структура</dt>
+      <dd>
+        {% if section_count %}{{ section_count }} раздел(ов) · {% endif %}
+        {% if chapter_count %}{{ chapter_count }} глав(ы) · {% endif %}
+        {% if article_count %}{{ article_count }} статей{% endif %}
+        {% if not section_count and not chapter_count and not article_count %}—{% endif %}
+      </dd>
+    </dl>
+    {# keep the existing "Другие редакции" details block here unchanged #}
     {% if published_redactions.count > 1 %}
     <details>
       <summary>Другие редакции ({{ published_redactions.count }})</summary>
