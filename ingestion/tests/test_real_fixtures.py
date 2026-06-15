@@ -85,6 +85,25 @@ def test_prof10fz_real_fixture_structure():
 
 
 @pytest.mark.skipif(
+    not (FIXTURES / "mrot_82fz_real.html").exists(),
+    reason="реальная фикстура 82-ФЗ не захвачена",
+)
+def test_mrot82fz_real_fixture_structure():
+    # ПЛОСКИЙ ФЗ без глав и разделов (82-ФЗ о МРОТ): только статьи (1–9),
+    # каждая — узел верхнего уровня (parent_order is None — это норма, не «сирота»).
+    content = (FIXTURES / "mrot_82fz_real.html").read_bytes()
+    parsed = parse_document(content, "text/html")
+    sections = [n for n in parsed.articles if n.kind == "section"]
+    chapters = [n for n in parsed.articles if n.kind == "chapter"]
+    articles = [n for n in parsed.articles if n.kind == "article"]
+    assert sections == []
+    assert chapters == []
+    assert len(articles) >= 9
+    assert all(a.parent_order is None for a in articles)  # плоский акт: всё — верхний уровень
+    assert "минимальном размере оплаты труда" in parsed.title.lower()
+
+
+@pytest.mark.skipif(
     not (FIXTURES / "tk_rf_real.html").exists(),
     reason="реальная фикстура ТК РФ не захвачена",
 )
@@ -214,3 +233,33 @@ def test_real_prof10_ingest_creates_clean_draft():
     assert red.articles.filter(kind=Article.Kind.CHAPTER).count() == 6
     # без «сирот»: у каждой статьи есть родительская глава
     assert not red.articles.filter(kind=Article.Kind.ARTICLE, parent__isnull=True).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.skipif(
+    not (FIXTURES / "mrot_82fz_real.html").exists(),
+    reason="реальная фикстура 82-ФЗ не захвачена",
+)
+def test_real_mrot82_ingest_creates_clean_draft():
+    """Приёмка парсера на ПЛОСКОМ акте (82-ФЗ о МРОТ, без глав): сквозной
+    ingest_target на живой фикстуре при auto_publish=False даёт чистый черновик
+    со статьями верхнего уровня (без глав — parent остаётся NULL, это норма).
+    Обосновывает auto_ingest=True для mrot-82-fz в сиде."""
+    content = (FIXTURES / "mrot_82fz_real.html").read_bytes()
+    doc = make_document(
+        slug="mrot-82-fz",
+        doc_type="federal_law",
+        title="О минимальном размере оплаты труда",
+        official_number="82-ФЗ",
+        auto_publish=False,
+    )
+    target = IngestionTarget(document=doc, url="http://x/", target_key=doc.slug)
+
+    job = ingest_target(target, client=_client_returning(content))
+
+    assert job.status == IngestionJob.Status.SUCCESS
+    red = Redaction.objects.get(document=doc)
+    assert red.review_status == Redaction.ReviewStatus.DRAFT
+    assert red.is_current is False
+    assert red.articles.filter(kind=Article.Kind.CHAPTER).count() == 0
+    assert red.articles.filter(kind=Article.Kind.ARTICLE).count() >= 9

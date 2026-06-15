@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>О минимальном размере оплаты труда</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=windows-1251; charset=windows-1251" />
+
+    
+    <link rel="stylesheet" type="text/css" href="?doc_itself.css" />
+    
+
+    <script type="text/javascript" src="?script.js" charset="windows-1251"></script>
+    <script type="text/javascript" src="?json.js" charset="windows-1251"></script>
+    <script type="text/javascript">
+
+        var bookMarkNumber = parseInt('', 10);
+        var textCompleted = 'True'.toLowerCase() == 'true';
+        var scrollTop = parseInt('', 10);
+
+        function goToMark() {
+            window.location.hash = "I0";
+        }
+
+        function changeFontOnLoad() {
+            if(window.parent.changeDocFont != null) {
+                window.parent.changeDocFont('t_normal');
+            }
+        }
+
+        function printOnLoad() {
+            
+            iePrint();
+            top.close();
+            
+        }
+
+        function loadFullText() {
+            if (textCompleted)
+                return;
+            var supportPageOffset = window.pageXOffset !== undefined;
+			var isCSS1Compat = ((document.compatMode || "") === "CSS1Compat");
+			var scrollTop = supportPageOffset ? window.pageYOffset : isCSS1Compat ? document.documentElement.scrollTop : document.body.scrollTop;
+            var textContent = document.getElementById("text_content");
+            textContent.innerHTML = '';
+            textContent.appendChild(createSpinner('?'));
+            var newUrl = document.location.href.split('#')[0];
+            newUrl += '&fulltext=1&scrolltop=' + scrollTop;
+            window.location.href = newUrl;
+            FixImagesIE();
+        }
+		function LinkParseHash(){
+					var cells = document.getElementsByTagName("a"); 
+					for (var i = 0; i < cells.length; i++) { 
+						var status = cells[i].setAttribute("target","_parent"); 
+						cells[i].setAttribute("href",cells[i].getAttribute("href")+"&forhash=1")
+					}
+		}
+
+        function loadFinished() {
+            document.doctitle = 'О минимальном размере оплаты труда';
+            window.docNum = parseInt('102066375', 10);
+            if (scrollTop > 0) {
+                window.scrollTo(0, scrollTop);
+            }
+            goToMark();
+            goToSelection();
+            setselchange();
+            IERecordSel();
+            changeFontOnLoad();
+            printOnLoad();
+            setLandscape();
+            if (textCompleted) {
+                hideSpinner();
+            }
+            FixImagesIE();
+        }
+
+        /*
+         Если проскролили больше половины текста, проверяем нужно ли загружать весь текст целиком
+         */
+        var didScroll = false;
+        window.onscroll = doThisStuffOnScroll;
+        function doThisStuffOnScroll() {
+            didScroll = true;
+        }
+        var refreshScrollId = setInterval(function() {
+            if(!textCompleted && didScroll) {
+                didScroll = false;
+                var scroll, height;
+                if (document.documentElement.scrollTop) {
+                    scroll = document.documentElement.scrollTop;
+                    height = document.documentElement.scrollHeight;
+                } else {
+                    scroll = document.body.scrollTop;
+                    height = document.body.scrollHeight;
+                }
+                if (scroll > height*0.7) {
+                    clearInterval(refreshScrollId);
+                    loadFullText();
+                }
+            }
+        }, 1000);
+// в IE 11 встроенный механизм ресайза работает нехорошо.
+        function FixImagesIE() {
+            if (!document.documentMode) return; // IE < 8 or not IE
+            if (navigator.userAgent.indexOf('MSIE') >= 0) return; // IE < 11
+            var images = document.querySelectorAll('img');
+            var tmpImages = [];
+            for (var i = 0; i < images.length; i++) {
+                var image = images[i];
+                var iW = images[i].naturalWidth;
+                var iH = images[i].naturalHeight;
+                var targetW = image.width;
+                var targetH = image.height;
+                if ((targetH * 2) > iH) continue; // до двухкратного уменьшения обойдемся встроенным ресайзом.
+                tmpImages[i] = new Image();
+                tmpImages[i].src = image.src;
+                tmpImages[i].setAttribute('iW', iW);
+                tmpImages[i].setAttribute('iH', iH);
+                tmpImages[i].setAttribute('targetW', targetW);
+                tmpImages[i].setAttribute('targetH', targetH);
+                tmpImages[i].setAttribute('num', i);
+                tmpImages[i].onload = function() {
+                    var iW = parseInt(this.getAttribute('iW')) / 2;
+                    var iH = parseInt(this.getAttribute('iH')) / 2;
+                    var targetW = parseInt(this.getAttribute('targetW'));
+                    var targetW = parseInt(this.getAttribute('targetH'));
+                    var num = parseInt(this.getAttribute('num'));
+                    iW = iW < targetW ? targetW : iW;
+                    iH = iH < targetH ? targetH : iH;
+                    this.setAttribute('iW', iW);
+                    this.setAttribute('iH', iH);
+                    var cnv = document.createElement('canvas');
+                    cnv.height = iH;
+                    cnv.width = iW;
+                    var ctx = cnv.getContext('2d');
+                    ctx.drawImage(this, 0, 0, iW, iH);
+                    var dataUrl = cnv.toDataURL();
+                    images[num].src = dataUrl;
+                    if (iW <= targetW || iH <= targetH) 
+                        return;
+                    this.src = dataUrl; // неявная рекурсия
+                }
+            }
+        }
+
+
+    </script>
+</head>
+
+<body style="height:100%;" onload="loadFinished();" class="doc_content_bg_default">
+
+    
+    <table class="docinfo" name="docinfo" id="docinfo">
+        <tr>
+            <td>
+                <br />
+                <span></span><br />
+                <span></span><br />
+                <br />
+            </td>
+        </tr>
+    </table>
+    
+
+    <div id="doc_content" class="doc_content" style="width: 750px;min-width: 710px;">
+
+        
+
+        <div id="text_content" >
+            <!DOCTYPE html>
+<html lang="ru" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:st1="urn:schemas-microsoft-com:office:smarttags" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta charset="windows-1251">
+<title>Complex</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:ValidateAgainstSchemas/><w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid><w:IgnoreMixedContent>false</w:IgnoreMixedContent><w:AlwaysShowPlaceholderText>false</w:AlwaysShowPlaceholderText><w:Compatibility><w:SelectEntireFieldWithStartOrEnd/><w:UseWord2002TableStyleRules/></w:Compatibility><w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel></w:WordDocument></xml><![endif]-->
+<style><!--/*CSS*/
+@page vert{size:595.3pt 841.9pt; mso-page-orientation:portrait; margin:15mm 10mm 15mm 12mm; mso-header-margin:10mm; mso-footer-margin:10mm; mso-paper-source:0;}
+@page hori{size:841.9pt 595.3pt; mso-page-orientation:landscape;margin:15mm 10mm 15mm 12mm; mso-header-margin:10mm; mso-footer-margin:10mm; mso-paper-source:0;}
+@page any{margin:15mm 10mm 15mm 12mm;}
+@page{margin:15mm 7mm 15mm 15mm;}
+body{margin:0px 0px 0px 12px; border:0; padding:0; color:#000000; background-color:#ffffff; font-size:18px; font-family:"times new roman", times, serif; line-height:125%; word-wrap:break-word;}
+div{margin:0; border:0; padding:0;}
+div.comment{display:block; width:670px; margin-bottom:5px; padding:5px 5px 7px 5px; border-radius:5px; background-color:#d5d5d5; font-size:16px; font-family:tahoma, arial, sans-serif; line-height:125%; text-align:justify;}
+div.fixedcomment{display:block; width:670px; margin-bottom:5px; padding:5px 3325px 7px 17px; background-color:#d5d5d5; font-size:16px; font-family:tahoma, arial, sans-serif; line-height:125%; text-align:justify;}
+div.fixedcomment:before{display:none; content:" "; top:0; left:0; position:fixed; z-index:8; width:670px; margin:0; padding:5px 3325px 7px 17px; background-color:#d5d5d5; font-size:16px; font-family:tahoma, arial, sans-serif; line-height:125%; text-align:justify;}
+div.clip{margin-top:4px; width:680px; font-size:16px; font-family:tahoma, arial, sans-serif; line-height:125%;}
+div.time{padding:16px 0px;}
+div.past{background-color:#f0b0c0;}
+div.future{background-color:#b8f0d0;}
+div.present{background-color:#a8e0ff;}
+div.brd{margin:8px 0px; border-bottom:1px solid #a0a0a0; padding:0;}
+div.fragments{min-height:1000px; width:4000px;}
+img, img.mid{margin-bottom:0; vertical-align:middle;}
+img.bot{margin-bottom:-5px; vertical-align:baseline;}
+p.I{text-indent:0; margin-left:45px; max-width:635px; text-align:left;}
+p.K{text-indent:0; margin-left:45px; max-width:635px; text-align:justify;}
+p.H{text-indent:-81px; margin-left:126px; max-width:509px; text-align:left; font-weight:bold;}
+p.S{text-indent:0; margin-left:340px; max-width:340px; text-align:center;}
+p.C{text-indent:0; margin-left:45px; margin-right:45px; max-width:590px; text-align:center;}
+p.T{text-indent:0; margin-left:45px; margin-right:45px; max-width:590px; text-align:center; font-weight:bold;}
+p.Z{text-indent:0; margin-left:45px; margin-right:45px; max-width:590px; text-align:center; font-weight:bold;}
+p.Y{text-indent:0; margin-left:45px; max-width:635px; text-align:left;}
+p.M{white-space:pre; overflow-wrap:normal; text-indent:0; max-width:4000px; text-align:left; font-size:17px; font-family:"courier new", courier, monospace;}
+p.L{text-indent:0; text-align:left;}
+p.R{text-indent:0; text-align:right;}
+p.J{text-indent:0; text-align:justify;}
+p.F,p.A{text-indent:0; margin-left:45px; max-width:625px; text-align:left; background-color:transparent; color:#000000; border-left:5px solid #c0c0c0; padding-left:5px;}
+p, p.P{text-indent:45px; margin:6px 0px; max-width:680px; text-align:justify; border:0; padding:0;}
+p.N{text-indent:45px; margin:6px 0px; max-width:680px; text-align:justify; border:0; padding:0; font-size:16px;}
+.HD{display:none;}
+.W0{vertical-align:baseline; font-size:100%; font-weight:normal; font-style:normal; text-decoration:none;}
+.W1{vertical-align:baseline; font-size:100%; font-weight:normal; font-style:normal; text-decoration:underline;}
+.W2{vertical-align:baseline; font-size:100%; font-weight:normal; font-style:italic; text-decoration:none;}
+.W3{vertical-align:baseline; font-size:100%; font-weight:normal; font-style:italic; text-decoration:underline;}
+.W4{vertical-align:baseline; font-size:100%; font-weight:bold; font-style:normal; text-decoration:none;}
+.W5{vertical-align:baseline; font-size:100%; font-weight:bold; font-style:normal; text-decoration:underline;}
+.W6{vertical-align:baseline; font-size:100%; font-weight:bold; font-style:italic; text-decoration:none;}
+.W7{vertical-align:baseline; font-size:100%; font-weight:bold; font-style:italic; text-decoration:underline;}
+.W8{vertical-align:sub; line-height:100%; font-size:100%; font-weight:normal; font-style:normal; text-decoration:none;}
+.W9{vertical-align:super; line-height:100%; font-size:100%; font-weight:normal; font-style:normal; text-decoration:none;}
+.WA{vertical-align:sub; line-height:100%; font-size:100%; font-weight:bold; font-style:normal; text-decoration:none;}
+.WB{vertical-align:super; line-height:100%; font-size:100%; font-weight:bold; font-style:normal; text-decoration:none;}
+.WC{vertical-align:baseline; font-size:100%; font-weight:normal; font-style:normal; text-decoration:line-through;}
+.WD{vertical-align:baseline; font-size:100%; font-weight:normal; font-style:italic; text-decoration:line-through;}
+.WE{vertical-align:baseline; font-size:100%; font-weight:bold; font-style:normal; text-decoration:line-through;}
+.WF{vertical-align:baseline; font-size:100%; font-weight:bold; font-style:italic; text-decoration:line-through;}
+table{table-layout:fixed;
+margin:0px 0px 4px 0px; padding:0;
+text-indent:0; text-align:left;
+box-sizing:border-box;
+border-collapse:collapse;
+border-spacing:0;
+border-width:1px;
+border-color:#a0a0a0;
+border-style:none;
+}
+td{
+empty-cells:show;
+vertical-align:top;
+margin:0; padding:6px 4px 6px 4px;
+text-indent:0; text-align:left;
+border-spacing:0;
+border-width:1px;
+border-color:#a0a0a0;
+border-style:none;
+}
+td div{margin:0; border:0; padding:0; display:inline-block; -ms-writing-mode:tb-rl; -ms-transform:rotate(180deg);}
+.TB0 td, .G02L td, .G02R td, .G02C td, .G02J td, .G04L td, .G04R td, .G04C td, .G04J td, .G03L td, .G03R td, .G03C td, .G03J td, .G05L td, .G05R td, .G05C td, .G05J td, .G07L td, .G07R td, .G07C td, .G07J td, .G08L td, .G08R td, .G08C td, .G08J td  {border-style:none;}
+.TB1 td, .G12L td, .G12R td, .G12C td, .G12J td, .G14L td, .G14R td, .G14C td, .G14J td, .G13L td, .G13R td, .G13C td, .G13J td, .G15L td, .G15R td, .G15C td, .G15J td, .G17L td, .G17R td, .G17C td, .G17J td, .G18L td, .G18R td, .G18C td, .G18J td  {border-style:solid;}
+table.G22L tr td, table.G22R tr td, table.G22C tr td, table.G22J tr td, table.G23L tr td, table.G23R tr td, table.G23C tr td, table.G23J tr td, table.G27L tr td, table.G27R tr td, table.G27C tr td, table.G27J tr td, table.G24L tr td, table.G24R tr td, table.G24C tr td, table.G24J tr td, table.G25L tr td, table.G25R tr td, table.G25C tr td, table.G25J tr td, table.G28L tr td, table.G28R tr td, table.G28C tr td, table.G28J tr td  {border-style:solid;}
+table.G32L tr td, table.G32R tr td, table.G32C tr td, table.G32J tr td, table.G33L tr td, table.G33R tr td, table.G33C tr td, table.G33J tr td, table.G37L tr td, table.G37R tr td, table.G37C tr td, table.G37J tr td, table.G34L tr td, table.G34R tr td, table.G34C tr td, table.G34J tr td, table.G35L tr td, table.G35R tr td, table.G35C tr td, table.G35J tr td, table.G38L tr td, table.G38R tr td, table.G38C tr td, table.G38J tr td  {border-style:none;}
+table td.X0{border-style:none;}
+table td.X1{border-style:solid none none none;}
+table td.X2{border-style:none solid none none;}
+table td.X3{border-style:solid solid none none;}
+table td.X4{border-style:none none solid none;}
+table td.X5{border-style:solid none solid none;}
+table td.X6{border-style:none solid solid none;}
+table td.X7{border-style:solid solid solid none;}
+table td.X8{border-style:none none none solid;}
+table td.X9{border-style:solid none none solid;}
+table td.XA{border-style:none solid none solid;}
+table td.XB{border-style:solid solid none solid;}
+table td.XC{border-style:none none solid solid;}
+table td.XD{border-style:solid none solid solid;}
+table td.XE{border-style:none solid solid solid;}
+table td.XF{border-style:solid;}
+td, td p, .TAL td, .TAL td p, tr td p.L, .G02L td, .G02L td p, .G04L td, .G04L td p, .G12L td, .G12L td p, .G14L td, .G14L td p, .G22L td, .G22L td p, .G24L td, .G24L td p, .G32L td, .G32L td p, .G34L td, .G34L td p, .G03L td, .G03L td p, .G05L td, .G05L td p, .G13L td, .G13L td p, .G15L td, .G15L td p, .G23L td, .G23L td p, .G25L td, .G25L td p, .G33L td, .G33L td p, .G35L td, .G35L td p, .G07L td, .G07L td p, .G08L td, .G08L td p, .G17L td, .G17L td p, .G18L td, .G18L td p, .G27L td, .G27L td p, .G28L td, .G28L td p, .G37L td, .G37L td p, .G38L td, .G38L td p  {text-indent:0; margin:0; max-width:100%; text-align:left;}
+.TAC td, .TAC td p, tr td p.C, .G02C td, .G02C td p, .G04C td, .G04C td p, .G12C td, .G12C td p, .G14C td, .G14C td p, .G22C td, .G22C td p, .G24C td, .G24C td p, .G32C td, .G32C td p, .G34C td, .G34C td p, .G03C td, .G03C td p, .G05C td, .G05C td p, .G13C td, .G13C td p, .G15C td, .G15C td p, .G23C td, .G23C td p, .G25C td, .G25C td p, .G33C td, .G33C td p, .G35C td, .G35C td p, .G07C td, .G07C td p, .G08C td, .G08C td p, .G17C td, .G17C td p, .G18C td, .G18C td p, .G27C td, .G27C td p, .G28C td, .G28C td p, .G37C td, .G37C td p, .G38C td, .G38C td p  {text-indent:0; margin:0; max-width:100%; text-align:center}
+.TAR td, .TAR td p, tr td p.R, .G02R td, .G02R td p, .G04R td, .G04R td p, .G12R td, .G12R td p, .G14R td, .G14R td p, .G22R td, .G22R td p, .G24R td, .G24R td p, .G32R td, .G32R td p, .G34R td, .G34R td p, .G03R td, .G03R td p, .G05R td, .G05R td p, .G13R td, .G13R td p, .G15R td, .G15R td p, .G23R td, .G23R td p, .G25R td, .G25R td p, .G33R td, .G33R td p, .G35R td, .G35R td p, .G07R td, .G07R td p, .G08R td, .G08R td p, .G17R td, .G17R td p, .G18R td, .G18R td p, .G27R td, .G27R td p, .G28R td, .G28R td p, .G37R td, .G37R td p, .G38R td, .G38R td p  {text-indent:0; margin:0; max-width:100%; text-align:right;}
+.TAJ td, .TAJ td p, tr td p.J, .G02J td, .G02J td p, .G04J td, .G04J td p, .G12J td, .G12J td p, .G14J td, .G14J td p, .G22J td, .G22J td p, .G24J td, .G24J td p, .G32J td, .G32J td p, .G34J td, .G34J td p, .G03J td, .G03J td p, .G05J td, .G05J td p, .G13J td, .G13J td p, .G15J td, .G15J td p, .G23J td, .G23J td p, .G25J td, .G25J td p, .G33J td, .G33J td p, .G35J td, .G35J td p, .G07J td, .G07J td p, .G08J td, .G08J td p, .G17J td, .G17J td p, .G18J td, .G18J td p, .G27J td, .G27J td p, .G28J td, .G28J td p, .G37J td, .G37J td p, .G38J td, .G38J td p  {text-indent:0; margin:0; max-width:100%; text-align:justify;}
+tr td p.P{text-indent:38px; margin:0; max-width:100%; text-align:justify;}
+tr td p.N{text-indent:38px; margin:0; max-width:100%; text-align:justify; font-size:16px;}
+tr td p.I{text-indent:0; margin:0px 0px 0px 38px; max-width:100%; text-align:left;}
+tr td p.K{text-indent:0; margin:0px 0px 0px 38px; max-width:100%; text-align:justify;}
+tr td p.H{text-indent:-81px; margin:0px 38px 0px 119px; max-width:100%; text-align:left; font-weight:bold;}
+tr td p.T{text-indent:0; margin:0px 38px 0px 38px; max-width:100%; text-align:center; font-weight:bold;}
+tr.holder td{visibility:hidden; height:0; border-style:none; padding:0; font-size:4px; line-height:0.125em;}
+.G02L, .G02C, .G02R, .G02J, .G12L, .G12C, .G12R, .G12J, .G22L, .G22C, .G22R, .G22J, .G32L, .G32C, .G32R, .G32J, .G03L, .G03C, .G03R, .G03J, .G13L, .G13C, .G13R, .G13J, .G23L, .G23C, .G23R, .G23J, .G33L, .G33C, .G33R, .G33J, .G07L, .G07C, .G07R, .G07J, .G17L, .G17C, .G17R, .G17J, .G27L, .G27C, .G27R, .G27J, .G37L, .G37C, .G37R, .G37J  {font-size:16px;}
+tr td p.M{max-width:100%; text-align:left; font-size:14px; font-family:"courier new", courier, monospace;}
+div.clip{page:any;}
+div.fragments{page:any;}
+input.cap{position:absolute; opacity:0; height:0; width:0;}
+input.cap + label{display:block; cursor:pointer; text-indent:0; margin-left:45px; margin-right:45px; max-width:590px; text-align:center; text-decoration:underline; color:#1111ee;}
+input.cap + label:before{content:""; display:inline-block; padding:0; margin-right:6px; border-radius:3px; min-height:15px; min-width:15px; font-size:15px; line-height:15px; vertical-align:middle; background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAABBSURBVDhPY3zw4P9/BjIBE5QmCwxSzYaG76Es7GDgnI0RVficev68IJQFAXjjGWQQugZkMIj8TAoYOGdToJmBAQCgSRZk7J2AQAAAAABJRU5ErkJggg==");}
+input.cap:checked + label:before{background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAAxSURBVDhPY3zw4P9/BjIBE5QmC4xqJhFgRJWh4XsoCxOcPy8IZUHAaDyTCAZKMwMDAC3CDlahtN6NAAAAAElFTkSuQmCC");}
+input.cap:not(:checked) + label + .C{display:none;}
+input.cap:not(:checked) + label + .C + .C{display:none;}
+input.cap + label.HD{display:none;}
+.mark,.markx{font-weight:normal; font-style:italic; text-decoration:none;}
+.cmd, a{font-style:normal;}
+/*CSS*/--><!--
+
+@media screen{
+div.fixedcomment{margin-left:-12px;}
+.G03L, .G03C, .G03R, .G03J, .G13L, .G13C, .G13R, .G13J, .G23L, .G23C, .G23R, .G23J, .G33L, .G33C, .G33R, .G33J, .G05L, .G05C, .G05R, .G05J, .G15L, .G15C, .G15R, .G15J, .G25L, .G25C, .G25R, .G25J, .G35L, .G35C, .G35R, .G35J  {color:#1111ee;}
+.G07L, .G07C, .G07R, .G07J, .G17L, .G17C, .G17R, .G17J, .G27L, .G27C, .G27R, .G27J, .G37L, .G37C, .G37R, .G37J, .G08L, .G08C, .G08R, .G08J, .G18L, .G18C, .G18R, .G18J, .G28L, .G28C, .G28R, .G28J, .G38L, .G38C, .G38R, .G38J  {color:#1111ee; background-color:#f0f0f0;}
+span.ed,span.edx{color:#1111ee;}
+span.mark,span.markx{color:#1111ee;}
+span.edx,span.markx{background-color:#f0f0f0;}
+p.F{background-color:#dcfeed; border-left:5px solid #94DD96; padding-left:5px;}
+p.A{background-color:#f0f0f0; border-left:5px solid #c0c0c0; padding-left:5px;}
+.F span.mark, .F span.markx, .A span.mark, .A span.markx{background-color:transparent; color:#000000;}
+.cmd, a{cursor:pointer; color:#1111ee; font-weight:normal; font-style:normal; text-decoration:underline;}
+.W8 .cmd, .W8 a{cursor:pointer; color:#1111ee; font-weight:normal; font-style:normal; text-decoration:underline;
+vertical-align:bottom; line-height:100%; font-size:11px; font-weight:normal; font-style:normal;}
+.W9 .cmd, .W9 a{cursor:pointer; color:#1111ee; font-weight:normal; font-style:normal; text-decoration:underline;
+vertical-align:top; line-height:100%; font-size:11px; font-weight:normal; font-style:normal;}
+.cmdx{background-color:#ead099;}
+.cmdg{background-color:#00e889; color:#000; text-decoration:none;}
+.cmdr{background-color:#ff8989; color:#000; text-decoration:none;}
+.cmd[cmdclr]{color:#dd11dd;}
+.W8{vertical-align:bottom; line-height:100%; font-size:11px; font-weight:normal; font-style:normal; text-decoration:none;}
+.W9{vertical-align:top; line-height:100%; font-size:11px; font-weight:normal; font-style:normal; text-decoration:none;}
+.WA{vertical-align:bottom; line-height:100%; font-size:11px; font-weight:bold; font-style:normal; text-decoration:none;}
+.WB{vertical-align:top; line-height:100%; font-size:11px; font-weight:bold; font-style:normal; text-decoration:none;}
+}
+@media print{
+body{margin:0; border:0; padding:0; color:#000000; background-color:#ffffff; widows:1; orphans:1; font-size:13.5pt; font-family:"times new roman", times, serif; line-height:125%; word-wrap:break-word;}
+div.comment{display:block; width:100%; font-size:11pt; margin:10pt 0pt; padding:0;}
+div.fixedcomment{display:block; width:100%; font-size:11pt; margin:10pt 0pt; padding:0;}
+div.fixedcomment:before{display:none; position:static; width:100%; font-size:11pt; margin:10pt 0pt; padding:0;}
+div.clip{width:100%; font-size:11pt; font-family:tahoma, arial, sans-serif;}
+div.time{padding:0ex 0ex 1ex 0ex;}
+div.fragments{min-height:5%; width:100%;}
+p, p.P{text-indent:7ex; max-width:100%; text-align:justify; margin:5pt 0pt; border:0; padding:0;}
+p.N{text-indent:8ex; max-width:100%; text-align:justify; margin:5pt 0pt; border:0; padding:0;}
+p.I{text-indent:0; margin-left:7ex; max-width:100%; text-align:left;}
+p.K{text-indent:0; margin-left:7ex; max-width:100%; text-align:justify;}
+p.H{text-indent:-10ex; margin-left:17ex; margin-right:6.5ex; max-width:100%; text-align:left; font-weight:bold;}
+p.S{text-indent:0; margin-left:auto; margin-right:0; max-width:40ex; text-align:center;}
+p.C{text-indent:0; margin-left:5ex; margin-right:5ex; max-width:100%; text-align:center;}
+p.T{text-indent:0; margin-left:5ex; margin-right:5ex; max-width:100%; text-align:center; font-weight:bold;}
+p.M{white-space:pre; overflow-wrap:normal; text-indent:0; max-width:100%; text-align:left; font-size:12.5pt; font-family:"courier new", courier, monospace;}
+p.F,p.A{max-width:100%;}
+.F span.mark, .F span.markx, .A span.mark, .A span.markx{background-color:transparent; color:#000000;}
+.cmd, a{color:#000000; font-weight:normal; font-style:normal; text-decoration:none;}
+.W8 .cmd, .W8 a{color:#000000; font-weight:normal; font-style:normal; text-decoration:none;
+vertical-align:bottom; line-height:100%; font-size:9pt; font-weight:normal; font-style:normal;}
+.W9 .cmd, .W9 a{color:#000000; font-weight:normal; font-style:normal; text-decoration:none;
+vertical-align:top; line-height:100%; font-size:9pt; font-weight:normal; font-style:normal;}
+.cmd[cmdclr]{color:#000000;}
+.W8{vertical-align:bottom; line-height:100%; font-size:9pt; font-weight:normal; font-style:normal; text-decoration:none;}
+.W9{vertical-align:top; line-height:100%; font-size:9pt; font-weight:normal; font-style:normal; text-decoration:none;}
+.WA{vertical-align:bottom; line-height:100%; font-size:9pt; font-weight:bold; font-style:normal; text-decoration:none;}
+.WB{vertical-align:top; line-height:100%; font-size:9pt; font-weight:bold; font-style:normal; text-decoration:none;}
+.G02L, .G02C, .G02R, .G02J, .G12L, .G12C, .G12R, .G12J, .G22L, .G22C, .G22R, .G22J, .G32L, .G32C, .G32R, .G32J, .G03L, .G03C, .G03R, .G03J, .G13L, .G13C, .G13R, .G13J, .G23L, .G23C, .G23R, .G23J, .G33L, .G33C, .G33R, .G33J, .G07L, .G07C, .G07R, .G07J, .G17L, .G17C, .G17R, .G17J, .G27L, .G27C, .G27R, .G27J, .G37L, .G37C, .G37R, .G37J  {font-size:12pt;}
+tr td p.M{max-width:100%; text-align:left; font-size:12pt; font-family:"courier new", courier, monospace; page-break-inside:avoid;}
+}
+@media print and (orientation:landscape){
+table{font-size:12pt;}
+p.M{font-size:11pt;}
+}
+div.ihintv{margin-top:6px; padding:2px 8px 7px 10px; border-radius:0px 0px 2px 2px; text-indent:0; text-align:justify; background-color:#d5d5d5; color:#000000;}
+div.ihint0, div.ihint1{display:none; position:fixed; z-index:9; left:0; top:0; border-radius:4px; border:2px solid #808080; padding-top:2px; text-indent:10px; text-align:left; background-color:#808080; color:#fffefb; box-shadow:2px 2px 2px #a0a0a0; font-size:16px; font-family:tahoma, arial, sans-serif; line-height:125%; word-wrap:break-word;}
+@media screen{div.ihint1{display:block;}}
+@media screen{
+p.cmp1:before, tr.cmp1>td:first-child:before{position:absolute; z-index:1; display:block; left:0; width:12px; content:"›"; text-indent:4px; text-align:left; text-decoration:none; background-color:#666666; color:#fffefb; font-size:100%; font-weight:bold; font-style:normal; font-family:"times new roman", times, serif;}
+}
+@media screen{#clip + .fragments p[data-n]:before{position:absolute; z-index:1; display:inline-block; left:0; width:auto;border-radius:0px 2px 2px 0px; padding-right:4px; content:attr(data-n) attr(data-m); text-indent:4px; text-align:left; white-space:pre; background-color:#666666; color:#fffefb; font-weight:normal; font-style:normal; font-family:"times new roman", times, serif;}
+}
+@media screen{#clip + .fragments table tr>td:first-child[data-m]:before{position:absolute; z-index:1; display:block; left:0; border-radius:0px 2px 2px 0px; padding-right:4px; content:attr(data-m); text-indent:4px; text-align:left; white-space:pre; background-color:#666666; color:#fffefb; font-weight:normal; font-style:normal; font-family:"times new roman", times, serif;}
+}
+--></style>
+</head>
+<body><p>&nbsp;</p><p>&nbsp;</p><p class="C">РОССИЙСКАЯ ФЕДЕРАЦИЯ</p><p>&nbsp;</p><p class="T">ФЕДЕРАЛЬНЫЙ ЗАКОН</p><p>&nbsp;</p><p class="T">О минимальном размере оплаты труда</p><p>&nbsp;</p><p class="I">Принят Государственной Думой&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2&nbsp;июня 2000&nbsp;года</p><p class="I">Одобрен Советом Федерации&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 7&nbsp;июня 2000&nbsp;года</p><p>&nbsp;</p><p class="C"><span class="markx" style="">(В редакции федеральных законов <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102075948" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;29.04.2002&nbsp;№&nbsp;42-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102078967" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;26.11.2002&nbsp;№&nbsp;152-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102083523" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;01.10.2003&nbsp;№&nbsp;127-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102088491" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;22.08.2004&nbsp;№&nbsp;122-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102090468" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;29.12.2004&nbsp;№&nbsp;198-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102113534" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;20.04.2007&nbsp;№&nbsp;54-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102122774" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;24.06.2008&nbsp;№&nbsp;91-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102131827" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;24.07.2009&nbsp;№&nbsp;213-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102148066" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;01.06.2011&nbsp;№&nbsp;106-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102161339" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;03.12.2012&nbsp;№&nbsp;232-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102169535" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;02.12.2013&nbsp;№&nbsp;336-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102362800" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;01.12.2014&nbsp;№&nbsp;408-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102384025" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;14.12.2015&nbsp;№&nbsp;376-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102399226" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;02.06.2016&nbsp;№&nbsp;164-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102418790" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;19.12.2016&nbsp;№&nbsp;460-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102455801" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;28.12.2017&nbsp;№&nbsp;421-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102463106" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;07.03.2018&nbsp;№&nbsp;41-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102496102" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;25.12.2018&nbsp;№&nbsp;481-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102649772" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;27.12.2019&nbsp;№&nbsp;463-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102958049" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;29.12.2020&nbsp;№&nbsp;473-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=602609999" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;06.12.2021&nbsp;№&nbsp;406-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=603592511" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;19.12.2022&nbsp;№&nbsp;522-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=606127767" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;27.11.2023&nbsp;№&nbsp;548-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=607777622" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;29.10.2024&nbsp;№&nbsp;365-ФЗ</a>, <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=609147414" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;28.11.2025&nbsp;№&nbsp;429-ФЗ</a>)</span></p><p class="C"><span class="mark" style="">(С учетом Постановления Конституционного Суда Российской Федерации <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102126155" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;27.11.2008&nbsp;№&nbsp;11-П</a>)</span></p><p>&nbsp;</p><p><span class="edx" style=""><span class="W4" style="">Статья 1</span>. Установить минимальный размер оплаты труда с 1&nbsp;января 2026&nbsp;года в сумме 27&nbsp;093&nbsp;рубля в месяц.</span><span class="markx" style="">&nbsp;(В редакции  Федерального закона <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=609147414" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;28.11.2025&nbsp;№&nbsp;429-ФЗ</a>)</span></p><p><span class="ed" style="">Минимальный размер оплаты труда на очередной год устанавливается федеральным законом в текущем году с учетом величины медианной заработной платы, рассчитанной федеральным органом исполнительной власти, осуществляющим функции по формированию официальной статистической информации о социальных, экономических, демографических, экологических и других общественных процессах в Российской Федерации, за предыдущий год.</span><span class="mark" style="">&nbsp;(В редакции  Федерального закона <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=606127767" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;27.11.2023&nbsp;№&nbsp;548-ФЗ</a>)</span></p><p><span class="ed" style="">Проект федерального закона об установлении минимального размера оплаты труда на очередной год подлежит обсуждению с Российской трехсторонней комиссией по регулированию социально-трудовых отношений в порядке, предусмотренном трудовым законодательством.</span></p><p><span class="ed" style="">С 2025&nbsp;года соотношение минимального размера оплаты труда и медианной заработной платы устанавливается в размере не ниже 48 процентов.</span><span class="mark" style="">&nbsp;(В редакции  Федерального закона <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=606127767" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;27.11.2023&nbsp;№&nbsp;548-ФЗ</a>)</span></p><p><span class="ed" style="">Указанное в части четвертой настоящей статьи соотношение минимального размера оплаты труда и медианной заработной платы пересматривается не реже одного раза в пять лет исходя из условий социально-экономического развития Российской Федерации.</span><span class="mark" style="">&nbsp;(В редакции  Федерального закона <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=606127767" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;27.11.2023&nbsp;№&nbsp;548-ФЗ</a>)</span></p><p><span class="ed" style="">Минимальный размер оплаты труда на очередной год устанавливается в размере не ниже величины прожиточного минимума трудоспособного населения в целом по Российской Федерации на очередной год и не ниже минимального размера оплаты труда, установленного на текущий год.</span></p><p><span class="ed" style="">Исчисление медианной заработной платы осуществляется на основании методики, определяемой федеральным органом исполнительной власти, осуществляющим функции по формированию официальной статистической информации о социальных, экономических, демографических, экологических и других общественных процессах в Российской Федерации.</span></p><p class="P"><span class="mark" style="">(Статья в редакции Федерального закона <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102958049" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;29.12.2020&nbsp;№&nbsp;473-ФЗ</a>)</span></p><p>&nbsp;</p><p><span class="W4" style="">Статья 2.</span> Минимальный размер оплаты труда, установленный статьей 1 настоящего Федерального закона, вводится:</p><p>организациями, финансируемыми из бюджетных источников,&nbsp;- за счет средств соответствующих бюджетов, внебюджетных средств, а также средств, полученных от предпринимательской и иной приносящей доход деятельности; <span class="mark" style="">(В редакции Федерального закона <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102113534" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;20.04.2007&nbsp;№&nbsp;54-ФЗ</a>)</span></p><p>другими организациями&nbsp;- за счет собственных средств.</p><p><span class="mark" style="">Часть.&nbsp;(Утратила силу&nbsp;- Федеральный закон <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102088491" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;22.08.2004&nbsp;№&nbsp;122-ФЗ</a>)</span></p><p><span class="mark" style="">Часть.&nbsp;(Дополнение частью&nbsp;- Федеральный закон <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102083523" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;01.10.2003&nbsp;№&nbsp;127-ФЗ</a>)&nbsp;(Утратила силу&nbsp;- Федеральный закон <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102113534" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;20.04.2007&nbsp;№&nbsp;54-ФЗ</a>)</span></p><p>&nbsp;</p><p><span class="W4" style="">Статья 3.</span> Минимальный размер оплаты труда применяется для регулирования оплаты труда и определения размеров пособий по временной нетрудоспособности, по беременности и родам, а также для иных целей обязательного социального страхования. Применение минимального размера оплаты труда для других целей не допускается. <span class="mark" style="">(В редакции федеральных законов <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102113534" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;20.04.2007&nbsp;№&nbsp;54-ФЗ</a>; <span class="cmd" style=""></span><a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102131827" onclick="window.parent.location.href=this.href" target="contents">от&nbsp;24.07.2009&nbsp;№&nbsp;213-ФЗ</a>)</span></p><p>&nbsp;</p><p><span class="W4" style="">Статья 4.</span> Установить, что до внесения изменений в соответствующие федеральные законы, определяющие размеры стипендий, пособий и других обязательных социальных выплат либо порядок их установления, выплата стипендий, пособий и других обязательных социальных выплат, размер которых в соответствии с законодательством Российской Федерации определяется в зависимости от минимального размера оплаты труда, производится с 1&nbsp;июля 2000&nbsp;года по 31&nbsp;декабря 2000&nbsp;года исходя из базовой суммы, равной 83 рублям 49 копейкам, с 1&nbsp;января 2001&nbsp;года исходя из базовой суммы, равной 100 рублям.</p><p>&nbsp;</p><p><span class="W4" style="">Статья 5.</span> Установить, что до внесения изменений в соответствующие федеральные законы, определяющие порядок исчисления налогов, сборов, штрафов и иных платежей, исчисление налогов, сборов, штрафов и иных платежей, осуществляемое в соответствии с законодательством Российской Федерации в зависимости от минимального размера оплаты труда, производится с 1&nbsp;июля 2000&nbsp;года по 31&nbsp;декабря 2000&nbsp;года исходя из базовой суммы, равной 83 рублям 49 копейкам, с 1&nbsp;января 2001&nbsp;года исходя из базовой суммы, равной 100 рублям.</p><p>Исчисление платежей по гражданско-правовым обязательствам, установленных в зависимости от минимального размера оплаты труда, производится с 1&nbsp;июля 2000&nbsp;года по 31&nbsp;декабря 2000&nbsp;года исходя из базовой суммы, равной 83 рублям 49 копейкам, с 1&nbsp;января 2001&nbsp;года исходя из базовой суммы, равной 100 рублям.</p><p>&nbsp;</p><p><span class="W4" style="">Статья 6.</span> Внести в пункт 2 статьи 12 Федерального закона <a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102053139" onclick="window.parent.location.href=this.href" target="contents"><span class="cmd" style="">от&nbsp;27&nbsp;мая 1998&nbsp;года №&nbsp;76-ФЗ</span></a> &quot;О&nbsp;статусе военнослужащих&quot; (Собрание законодательства Российской Федерации, 1998, №&nbsp;22, ст.&nbsp;2331) следующие изменения:</p><p>абзац второй исключить;</p><p>абзац третий изложить в следующей редакции:</p><p>&quot;Оклады денежного содержания военнослужащих повышаются Правительством Российской Федерации в порядке и сроки, которые предусмотрены для федеральных государственных служащих.&quot;.</p><p>&nbsp;</p><p><span class="W4" style="">Статья 7.</span> Признать утратившим силу Федеральный закон <a class="doclink" href="?docbody=&amp;prevDoc=102066375&amp;backlink=1&amp;&amp;nd=102045167" onclick="window.parent.location.href=this.href" target="contents"><span class="cmd" style="">от&nbsp;9&nbsp;января 1997&nbsp;года №&nbsp;6-ФЗ</span></a> &quot;О&nbsp;повышении минимального размера оплаты труда&quot; (Собрание законодательства Российской Федерации, 1997, №&nbsp;3, ст.&nbsp;350).</p><p>&nbsp;</p><p><span class="W4" style="">Статья 8.</span> Предложить Президенту Российской Федерации и поручить Правительству Российской Федерации привести свои нормативные правовые акты в соответствие с настоящим Федеральным законом.</p><p>&nbsp;</p><p><span class="W4" style="">Статья 9.</span> Настоящий Федеральный закон вступает в силу с 1&nbsp;июля 2000&nbsp;года.</p><p>&nbsp;</p><p>&nbsp;</p><p class="I">Президент Российской Федерации&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;В.Путин</p><p>&nbsp;</p><p>Москва, Кремль</p><p>19&nbsp;июня 2000&nbsp;года</p><p>№&nbsp;82-ФЗ</p><p>&nbsp;</p></body></html>
+
+        </div>
+
+        
+
+    </div>
+
+</body>
+</html>
