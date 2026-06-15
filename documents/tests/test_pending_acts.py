@@ -1,4 +1,7 @@
 import pytest
+from django.contrib.auth import get_user_model
+from django.test import Client
+from django.urls import reverse
 
 from documents.models import Document, PendingAct, Redaction
 from documents.tests.factories import make_document, make_redaction
@@ -84,3 +87,36 @@ def test_seed_corpus_removes_resolved_pending_act():
 
     # разрешённая запись не остаётся в реестре
     assert not PendingAct.objects.filter(slug="zanyatost-565-fz").exists()
+
+
+@pytest.mark.django_db
+def test_pendingact_admin_changelist_renders():
+    User = get_user_model()
+    admin_user = User.objects.create_superuser(
+        username="admin_probe", email="a@b.c", password="x"
+    )
+    client = Client()
+    client.force_login(admin_user)
+    resp = client.get(
+        reverse("admin:documents_pendingact_changelist"), HTTP_HOST="localhost"
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_pendingact_admin_change_form_shows_ingest_hint():
+    pa = PendingAct.objects.create(
+        slug="zanyatost-565-fz", title="О занятости населения в Российской Федерации",
+        official_number="565-ФЗ", doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    User = get_user_model()
+    admin_user = User.objects.create_superuser(
+        username="admin_probe2", email="a@b.c", password="x"
+    )
+    client = Client()
+    client.force_login(admin_user)
+    resp = client.get(
+        reverse("admin:documents_pendingact_change", args=[pa.pk]), HTTP_HOST="localhost"
+    )
+    assert resp.status_code == 200
+    assert b"ingest_url --slug zanyatost-565-fz" in resp.content
