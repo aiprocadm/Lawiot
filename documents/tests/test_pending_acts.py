@@ -58,3 +58,29 @@ def test_is_resolved_false_when_number_matches_but_doc_type_differs():
     )
     make_redaction(document=doc, review_status=Redaction.ReviewStatus.PUBLISHED, is_current=True)
     assert pa.is_resolved is False
+
+
+@pytest.mark.django_db
+def test_seed_corpus_materializes_pending_acts():
+    from django.core.management import call_command
+
+    call_command("seed_corpus")
+    assert PendingAct.objects.filter(slug="zanyatost-565-fz").exists()
+
+
+@pytest.mark.django_db
+def test_seed_corpus_removes_resolved_pending_act():
+    from django.core.management import call_command
+
+    # 565-ФЗ "разрешён": заведён и опубликован
+    doc = make_document(
+        slug="zanyatost-565-fz", official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+        title="О занятости населения в Российской Федерации",
+    )
+    make_redaction(document=doc, review_status=Redaction.ReviewStatus.PUBLISHED, is_current=True)
+
+    call_command("seed_corpus")
+
+    # разрешённая запись не остаётся в реестре
+    assert not PendingAct.objects.filter(slug="zanyatost-565-fz").exists()
