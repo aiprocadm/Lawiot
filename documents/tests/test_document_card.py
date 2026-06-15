@@ -80,7 +80,8 @@ def test_detail_renders_passport_fields(client, django_user_model):
     _published_doc_with_structure()
     html = client.get("/doc/demo-act/").content.decode()
     assert "Дата подписания" in html
-    assert "01.01.2020" in html or "1 янв" in html or "2020" in html
+    assert "01.01.2020" in html  # sign_date
+    assert "02.01.2020" in html  # official_pub_date
     assert "Дата опубликования" in html
     assert "status-badge" in html
     assert "status-in_force" in html
