@@ -2,6 +2,8 @@
 из официального источника (этап захвата фикстур). auto_ingest=True включается
 для акта только после успешной приёмки парсера на нём."""
 
+import datetime
+
 SEED_ACTS = [
     {
         "slug": "tk-rf",
@@ -10,6 +12,8 @@ SEED_ACTS = [
         "official_number": "197-ФЗ",
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
+        "sign_date": datetime.date(2001, 12, 30),  # подписан Президентом 30.12.2001
+        "official_pub_date": datetime.date(2001, 12, 31),  # «Российская газета» №256
         # ИПС «Законодательство России» (pravo.gov.ru). Эндпоинт doc_itself отдаёт
         # консолидированный текст (базовый ?docbody= — лишь селектор редакций).
         # ВАЖНО: print=1 обязателен (без него ответ обрезается ~620КБ — ТК РФ
@@ -32,6 +36,8 @@ SEED_ACTS = [
         "official_number": "426-ФЗ",
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
+        "sign_date": datetime.date(2013, 12, 28),  # подписан 28.12.2013
+        "official_pub_date": datetime.date(2013, 12, 30),  # «Российская газета» №295
         "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102170672&print=1",
         # Приёмка парсера пройдена на живой фикстуре (4 главы, ≥27 статей, без «сирот»):
         # см. test_real_sout426_ingest_creates_clean_draft. auto_ingest даёт лишь
