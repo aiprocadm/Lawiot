@@ -167,6 +167,25 @@ def test_parse_structure_uppercase_headers():
     assert ("article", "1") in kinds
 
 
+def test_parse_structure_roman_numeral_chapters():
+    # Главы римскими цифрами (напр. 10-ФЗ о профсоюзах: «Глава I … Глава VI»).
+    # Раньше CHAPTER_RE знал только арабские номера → статьи оставались «сиротами».
+    text = (
+        "Глава I. ОБЩИЕ ПОЛОЖЕНИЯ\n"
+        "Статья 1. Предмет\nтекст\n"
+        "Глава II. ОСНОВНЫЕ ПРАВА\n"
+        "Статья 2. Право\nтекст"
+    )
+    nodes = parse_structure(text)
+    chapters = [n for n in nodes if n.kind == "chapter"]
+    articles = [n for n in nodes if n.kind == "article"]
+    assert [c.number for c in chapters] == ["I", "II"]
+    # каждая статья привязана к своей главе — без «сирот»
+    assert all(a.parent_order is not None for a in articles)
+    assert articles[0].parent_order == chapters[0].order
+    assert articles[1].parent_order == chapters[1].order
+
+
 def test_detect_redaction_date_picks_max_citation_date():
     text = (
         "Одобрен 26 декабря 2001 года "
