@@ -6,7 +6,7 @@ from documents.admin_views import (
     redaction_diff_view,
     review_queue_view,
 )
-from documents.models import Article, Document, Link, Redaction
+from documents.models import Article, Document, Link, PendingAct, Redaction
 from ingestion.services import (
     PublishedRedactionExists,
     ReparseYieldedNothing,
@@ -89,3 +89,40 @@ class LinkAdmin(admin.ModelAdmin):
     def confirm_selected(self, request, queryset):
         updated = queryset.update(status=Link.Status.CONFIRMED)
         self.message_user(request, f"Подтверждено: {updated}")
+
+
+class PendingActResolvedFilter(admin.SimpleListFilter):
+    title = "в корпусе"
+    parameter_name = "resolved"
+
+    def lookups(self, request, model_admin):
+        return [("yes", "Да"), ("no", "Нет")]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value not in {"yes", "no"}:
+            return queryset
+        resolved_ids = [pa.pk for pa in queryset if pa.is_resolved]
+        if value == "yes":
+            return queryset.filter(pk__in=resolved_ids)
+        return queryset.exclude(pk__in=resolved_ids)
+
+
+@admin.register(PendingAct)
+class PendingActAdmin(admin.ModelAdmin):
+    list_display = ("title", "official_number", "doc_type", "resolved", "added_at")
+    list_filter = (PendingActResolvedFilter, "doc_type")
+    search_fields = ("title", "official_number")
+    readonly_fields = ("ingest_hint", "added_at")
+
+    @admin.display(boolean=True, description="В корпусе")
+    def resolved(self, obj):
+        return obj.is_resolved
+
+    @admin.display(description="Как завести")
+    def ingest_hint(self, obj):
+        return (
+            f"python manage.py ingest_url --slug {obj.slug} "
+            f'--url "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=<ND>&print=1"  '
+            f"— затем ревью черновика и публикация вручную."
+        )

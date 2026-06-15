@@ -234,3 +234,36 @@ class Link(models.Model):
     def __str__(self):
         target = self.to_document or self.raw_citation or "—"
         return f"{self.from_document} — {self.get_link_type_display()} → {target}"
+
+
+class PendingAct(models.Model):
+    """Акт, который мы хотим в корпусе, но которого пока нет в доступном источнике
+    (напр. 565-ФЗ: в ИПС нет консолидированного текста). Напоминание куратору —
+    список виден в admin; «разрешён» выводится из состояния корпуса."""
+
+    slug = models.SlugField(max_length=255, unique=True)
+    title = models.TextField()
+    official_number = models.CharField(max_length=100, blank=True)
+    doc_type = models.CharField(max_length=20, choices=Document.DocType.choices)
+    note = models.TextField(blank=True, help_text="Почему ждём / где искать.")
+    ips_search_url = models.URLField(blank=True, help_text="Ссылка на поиск ИПС (браузер).")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["added_at"]
+        verbose_name = "ожидаемый акт"
+        verbose_name_plural = "ожидаемые акты"
+
+    def __str__(self):
+        return f"{self.official_number}: {self.title[:60]} (ожидается)"
+
+    @property
+    def is_resolved(self) -> bool:
+        """True, когда акт уже заведён: есть Document с теми же (official_number,
+        doc_type) и опубликованной текущей редакцией."""
+        return Document.objects.filter(
+            official_number=self.official_number,
+            doc_type=self.doc_type,
+            redactions__is_current=True,
+            redactions__review_status=Redaction.ReviewStatus.PUBLISHED,
+        ).exists()

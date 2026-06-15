@@ -1,0 +1,140 @@
+import pytest
+from django.contrib.auth import get_user_model
+from django.test import Client
+from django.urls import reverse
+
+from documents.models import Document, PendingAct, Redaction
+from documents.tests.factories import make_document, make_redaction
+
+
+@pytest.mark.django_db
+def test_is_resolved_false_without_matching_document():
+    pa = PendingAct.objects.create(
+        slug="zanyatost-565-fz",
+        title="О занятости населения в Российской Федерации",
+        official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    assert pa.is_resolved is False
+
+
+@pytest.mark.django_db
+def test_is_resolved_false_with_only_draft():
+    pa = PendingAct.objects.create(
+        slug="zanyatost-565-fz",
+        title="О занятости населения в Российской Федерации",
+        official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    doc = make_document(
+        slug="zanyatost-565-fz", official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    make_redaction(document=doc, review_status=Redaction.ReviewStatus.DRAFT, is_current=False)
+    assert pa.is_resolved is False
+
+
+@pytest.mark.django_db
+def test_is_resolved_true_with_published_current():
+    pa = PendingAct.objects.create(
+        slug="zanyatost-565-fz",
+        title="О занятости населения в Российской Федерации",
+        official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    doc = make_document(
+        slug="zanyatost-565-fz", official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    make_redaction(document=doc, review_status=Redaction.ReviewStatus.PUBLISHED, is_current=True)
+    assert pa.is_resolved is True
+
+
+@pytest.mark.django_db
+def test_is_resolved_false_when_number_matches_but_doc_type_differs():
+    pa = PendingAct.objects.create(
+        slug="x-565", title="Иной акт", official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    doc = make_document(
+        slug="x-565-decree", official_number="565-ФЗ", doc_type=Document.DocType.DECREE,
+    )
+    make_redaction(document=doc, review_status=Redaction.ReviewStatus.PUBLISHED, is_current=True)
+    assert pa.is_resolved is False
+
+
+@pytest.mark.django_db
+def test_is_resolved_false_when_current_but_draft():
+    # is_current=True, но статус DRAFT → не разрешён: нужны ОБА условия
+    # (страховка инварианта is_resolved; через create() флаги можно выставить врозь).
+    pa = PendingAct.objects.create(
+        slug="zanyatost-565-fz",
+        title="О занятости населения в Российской Федерации",
+        official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    doc = make_document(
+        slug="zanyatost-565-fz", official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    make_redaction(document=doc, review_status=Redaction.ReviewStatus.DRAFT, is_current=True)
+    assert pa.is_resolved is False
+
+
+@pytest.mark.django_db
+def test_seed_corpus_materializes_pending_acts():
+    from django.core.management import call_command
+
+    call_command("seed_corpus")
+    assert PendingAct.objects.filter(slug="zanyatost-565-fz").exists()
+
+
+@pytest.mark.django_db
+def test_seed_corpus_removes_resolved_pending_act():
+    from django.core.management import call_command
+
+    # 565-ФЗ "разрешён": заведён и опубликован
+    doc = make_document(
+        slug="zanyatost-565-fz", official_number="565-ФЗ",
+        doc_type=Document.DocType.FEDERAL_LAW,
+        title="О занятости населения в Российской Федерации",
+    )
+    make_redaction(document=doc, review_status=Redaction.ReviewStatus.PUBLISHED, is_current=True)
+
+    call_command("seed_corpus")
+
+    # разрешённая запись не остаётся в реестре
+    assert not PendingAct.objects.filter(slug="zanyatost-565-fz").exists()
+
+
+@pytest.mark.django_db
+def test_pendingact_admin_changelist_renders():
+    User = get_user_model()
+    admin_user = User.objects.create_superuser(
+        username="admin_probe", email="a@b.c", password="x"
+    )
+    client = Client()
+    client.force_login(admin_user)
+    resp = client.get(
+        reverse("admin:documents_pendingact_changelist"), HTTP_HOST="localhost"
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_pendingact_admin_change_form_shows_ingest_hint():
+    pa = PendingAct.objects.create(
+        slug="zanyatost-565-fz", title="О занятости населения в Российской Федерации",
+        official_number="565-ФЗ", doc_type=Document.DocType.FEDERAL_LAW,
+    )
+    User = get_user_model()
+    admin_user = User.objects.create_superuser(
+        username="admin_probe2", email="a@b.c", password="x"
+    )
+    client = Client()
+    client.force_login(admin_user)
+    resp = client.get(
+        reverse("admin:documents_pendingact_change", args=[pa.pk]), HTTP_HOST="localhost"
+    )
+    assert resp.status_code == 200
+    assert b"ingest_url --slug zanyatost-565-fz" in resp.content
