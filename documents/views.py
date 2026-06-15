@@ -2,12 +2,12 @@ from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Exists, F, OuterRef
+from django.db.models import Count, Exists, F, OuterRef
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 
 from documents.diffing import diff_articles
-from documents.models import Document, Link, Redaction
+from documents.models import Article, Document, Link, Redaction
 
 PAGE_SIZE = 20
 
@@ -46,6 +46,10 @@ def document_detail(request, slug):
     for a in articles:
         a.child_nodes = children_map[a.id]
     article_tree = children_map[None]
+    counts = {
+        row["kind"]: row["n"]
+        for row in redaction.articles.values("kind").annotate(n=Count("id"))
+    }
     visible_statuses = [Link.Status.CONFIRMED]
     if request.user.is_staff:
         visible_statuses.append(Link.Status.SUGGESTED)
@@ -77,6 +81,9 @@ def document_detail(request, slug):
             "incoming": incoming,
             "is_curator": request.user.is_staff,
             "published_redactions": published_redactions,
+            "section_count": counts.get(Article.Kind.SECTION, 0),
+            "chapter_count": counts.get(Article.Kind.CHAPTER, 0),
+            "article_count": counts.get(Article.Kind.ARTICLE, 0),
         },
     )
 
