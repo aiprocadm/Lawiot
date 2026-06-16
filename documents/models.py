@@ -46,6 +46,15 @@ class Document(models.Model):
     def __str__(self):
         return f"{self.get_doc_type_display()} {self.official_number}: {self.title[:60]}"
 
+    @property
+    def reference_label(self) -> str:
+        """Человекочитаемая подпись акта для панелей связей: название плюс номер
+        в скобках, когда номер задан; только название иначе. Так текст ссылки
+        никогда не пуст (раньше выводился голый official_number, blank=True)."""
+        if self.official_number:
+            return f"{self.title} ({self.official_number})"
+        return self.title
+
 
 class Redaction(models.Model):
     class ReviewStatus(models.TextChoices):
