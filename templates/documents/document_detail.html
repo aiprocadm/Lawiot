@@ -28,7 +28,7 @@
       <summary>Другие редакции ({{ published_redactions.count }})</summary>
       <ul>
         {% for r in published_redactions %}
-        <li>Редакция от {{ r.redaction_date }}{% if r.is_current %} — текущая{% else %}
+        <li>Редакция от {{ r.redaction_date|date:"d.m.Y" }}{% if r.is_current %} — текущая{% else %}
           — <a href="{% url 'redaction_diff' document.slug r.pk %}">что изменилось к текущей</a>{% endif %}</li>
         {% endfor %}
       </ul>
