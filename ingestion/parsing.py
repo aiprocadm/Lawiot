@@ -14,6 +14,18 @@ SECTION_RE = re.compile(r"^Раздел\s+([IVXLCDM]+)\.?\s*(.*)$", re.IGNORECAS
 # римской («Глава I. Общие положения» — так размечены, напр., 10-ФЗ о профсоюзах).
 CHAPTER_RE = re.compile(r"^Глава\s+(\d+(?:\.\d+)?|[IVXLCDM]+)\.?\s*(.*)$", re.IGNORECASE)
 
+# Подзаконные акты разбираются по doc_type (см. parse_text).
+POINT_DOC_TYPES = ("decree", "order")
+# Заголовок приложения: «Приложение N …» / «УТВЕРЖДЕНО постановлением…».
+# group(1) — номер (может отсутствовать), group(2) — остаток строки (для заголовка).
+APPENDIX_RE = re.compile(
+    r"^(?:Приложени\w*|УТВЕРЖД\w*)\b\s*(?:(?:N|№)\s*)?(\d+)?[.:]?\s*(.*)$",
+    re.IGNORECASE,
+)
+# Пункт подзаконного акта: дроблёный номер В НАЧАЛЕ строки + текст: «1.», «1.1.», «12.3.».
+# Требуем пробел и непустой текст после точки — чтобы «2.5 ставки» в прозе не считалось пунктом.
+POINT_RE = re.compile(r"^(\d+(?:\.\d+)*)\.\s+(\S.*)$")
+
 # Реквизиты НПА: номер вида «197-ФЗ» / «1-ФКЗ» и дата «ДД.ММ.ГГГГ»
 NUMBER_HINT_RE = re.compile(r"\b(\d{1,4}-(?:ФЗ|ФКЗ))\b")
 DATE_HINT_RE = re.compile(r"\b(\d{2}\.\d{2}\.\d{4})\b")
@@ -152,6 +164,79 @@ def parse_text(text: str) -> ParsedDocument:
 def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDocument:
     """Полный разбор: нормализовать содержимое и разобрать (тонкая обёртка над parse_text)."""
     return parse_text(html_to_text(content, content_type))
+
+
+def parse_points(text: str) -> list[ParsedArticle]:
+    """Иерархический разбор подзаконного акта (постановление/приказ):
+    приложения, разделы/главы (переиспользуя кодексовые SECTION_RE/CHAPTER_RE)
+    и пункты «N.N.N». Вложенность пунктов — по дроблёному номеру (1.1 — потомок 1);
+    верхнеуровневые пункты крепятся к ближайшему контейнеру (глава/раздел/приложение)."""
+    nodes: list[ParsedArticle] = []
+    order = 0
+    current_appendix: int | None = None
+    current_section: int | None = None
+    current_chapter: int | None = None
+    current_point: ParsedArticle | None = None
+    point_by_number: dict[str, ParsedArticle] = {}
+    body: list[str] = []
+
+    def flush_point() -> None:
+        nonlocal current_point
+        if current_point is not None:
+            current_point.text = "\n".join(body).strip()
+            current_point = None
+
+    def container() -> int | None:
+        # Ближайший открытый контейнер для верхнеуровневого пункта.
+        return current_chapter or current_section or current_appendix
+
+    for line in text.splitlines():
+        app = APPENDIX_RE.match(line)
+        sec = SECTION_RE.match(line)
+        chap = CHAPTER_RE.match(line)
+        pt = POINT_RE.match(line)
+        if app:
+            flush_point()
+            order += 1
+            nodes.append(
+                ParsedArticle(app.group(1) or "", app.group(2).strip(), "", order, "appendix", None)
+            )
+            current_appendix, current_section, current_chapter = order, None, None
+            point_by_number = {}  # нумерация пунктов независима в каждом приложении
+        elif sec:
+            flush_point()
+            order += 1
+            nodes.append(
+                ParsedArticle(sec.group(1), sec.group(2).strip(), "", order, "section", current_appendix)
+            )
+            current_section, current_chapter = order, None
+        elif chap:
+            flush_point()
+            order += 1
+            nodes.append(
+                ParsedArticle(
+                    chap.group(1), chap.group(2).strip(), "", order, "chapter",
+                    current_section or current_appendix,
+                )
+            )
+            current_chapter = order
+        elif pt:
+            flush_point()
+            order += 1
+            number, inline = pt.group(1), pt.group(2).strip()
+            if "." in number:
+                parent_node = point_by_number.get(number.rsplit(".", 1)[0])
+                parent_order = parent_node.order if parent_node else container()
+            else:
+                parent_order = container()
+            current_point = ParsedArticle(number, "", inline, order, "point", parent_order)
+            nodes.append(current_point)
+            point_by_number[number] = current_point
+            body = [inline]
+        elif current_point is not None:
+            body.append(line)
+    flush_point()
+    return nodes
 
 
 def parse_structure(text: str) -> list[ParsedArticle]:
