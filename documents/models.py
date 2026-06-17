@@ -177,7 +177,9 @@ class Article(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:
-            prefix = self._ANCHOR_PREFIX.get(self.kind, "p")
+            # Прямой доступ: новый вид без префикса упадёт KeyError явно,
+            # а не получит молча якорь пункта (раньше дефолт был "p").
+            prefix = self._ANCHOR_PREFIX[self.kind]
             self.anchor = f"{prefix}-{slugify(self.number.replace('.', '-'))}"
         super().save(*args, **kwargs)
 
