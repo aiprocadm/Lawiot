@@ -1,5 +1,5 @@
 <li>
-  <a href="#{{ node.anchor }}">{{ node.get_kind_display }} {{ node.number }}. {{ node.title }}</a>
+  <a href="#{{ node.anchor }}">{{ node.get_kind_display }}{% if node.number %} {{ node.number }}.{% endif %}{% if node.title %} {{ node.title }}{% endif %}</a>
   {% if node.child_nodes %}
   <ul>
     {% for child in node.child_nodes %}{% include "documents/_toc_node.html" with node=child %}{% endfor %}

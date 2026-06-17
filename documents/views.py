@@ -81,6 +81,8 @@ def document_detail(request, slug):
             "section_count": kind_counts.get(Article.Kind.SECTION, 0),
             "chapter_count": kind_counts.get(Article.Kind.CHAPTER, 0),
             "article_count": kind_counts.get(Article.Kind.ARTICLE, 0),
+            "point_count": kind_counts.get(Article.Kind.POINT, 0),
+            "appendix_count": kind_counts.get(Article.Kind.APPENDIX, 0),
         },
     )
 

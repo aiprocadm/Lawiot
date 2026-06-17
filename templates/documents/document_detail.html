@@ -18,8 +18,10 @@
       <dd>
         {% if section_count %}{{ section_count }} раздел(ов) · {% endif %}
         {% if chapter_count %}{{ chapter_count }} глав(ы) · {% endif %}
+        {% if appendix_count %}{{ appendix_count }} приложени(й) · {% endif %}
+        {% if point_count %}{{ point_count }} пункт(ов) · {% endif %}
         {% if article_count %}{{ article_count }} статей{% endif %}
-        {% if not section_count and not chapter_count and not article_count %}—{% endif %}
+        {% if not section_count and not chapter_count and not article_count and not point_count and not appendix_count %}—{% endif %}
       </dd>
     </dl>
     {# keep the existing "Другие редакции" details block here unchanged #}
