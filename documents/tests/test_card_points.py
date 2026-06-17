@@ -30,6 +30,7 @@ def test_passport_shows_point_and_appendix_counts(client, django_user_model):
     )
     resp = client.get(f"/doc/{doc.slug}/", SERVER_NAME="localhost")
     assert resp.status_code == 200
-    html = resp.content.decode()
-    assert "приложени" in html.lower()
-    assert "пункт" in html.lower()
+    html = resp.content.decode().lower()
+    # Проверяем именно счётчики структуры (со значением), а не просто слова.
+    assert "1 приложени" in html
+    assert "1 пункт" in html
