@@ -23,3 +23,26 @@ def test_decree_with_points_passes_publish_gate():
     )
     Article.objects.create(redaction=red, kind=Article.Kind.POINT, number="1", order=1)
     assert _is_safe_to_publish(red, None) is True
+
+
+def _decree_redaction_with_points(slug, rdate, n_points):
+    doc, _ = Document.objects.get_or_create(
+        doc_type=Document.DocType.DECREE, slug=slug, defaults={"title": "П"}
+    )
+    red = Redaction.objects.create(document=doc, redaction_date=rdate, full_text="т")
+    for i in range(n_points):
+        Article.objects.create(
+            redaction=red, kind=Article.Kind.POINT, number=str(i + 1), order=i + 1
+        )
+    return red
+
+
+@pytest.mark.django_db
+def test_ratio_gate_with_points_blocks_sharp_drop():
+    # Ветка «коэффициентного» гейта раньше была недостижима для актов-с-пунктами
+    # (старый счётчик давал 0). Теперь current тоже считается по пунктам.
+    current = _decree_redaction_with_points("gate-ratio", date(2020, 1, 1), 10)
+    new_ok = _decree_redaction_with_points("gate-ratio", date(2021, 1, 1), 8)  # 8/10 = 0.8
+    new_bad = _decree_redaction_with_points("gate-ratio", date(2022, 1, 1), 2)  # 2/10 < 0.8
+    assert _is_safe_to_publish(new_ok, current) is True
+    assert _is_safe_to_publish(new_bad, current) is False
