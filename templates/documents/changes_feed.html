@@ -13,7 +13,7 @@
   <li>
     <a href="{% url 'document_detail' red.document.slug %}">{{ red.document.title }}</a>
     <small>
-      действует с {{ red.redaction_date }} · опубликовано {{ red.published_at|date:"d.m.Y H:i" }}
+      действует с {{ red.redaction_date|date:"d.m.Y" }} · опубликовано {{ red.published_at|date:"d.m.Y H:i" }}
       {% if red.prev_pk %}
       · <a href="{% url 'redaction_diff' red.document.slug red.prev_pk %}">что изменилось</a>
       {% endif %}

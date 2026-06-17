@@ -2,7 +2,7 @@
   {% for doc in page_obj %}
   <li>
     <a href="{% url 'document_detail' doc.slug %}">{{ doc.title }}</a>
-    <small>({{ doc.get_doc_type_display }} № {{ doc.official_number }})</small>
+    <small>({{ doc.get_doc_type_display }}{% if doc.official_number %} № {{ doc.official_number }}{% endif %})</small>
   </li>
   {% empty %}
   <li>Опубликованных актов пока нет.</li>
