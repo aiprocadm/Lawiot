@@ -117,7 +117,10 @@ def _finish(job, log_lines):
 
 
 def _article_count(redaction):
-    return redaction.articles.filter(kind=Article.Kind.ARTICLE).count()
+    # Содержательные единицы: статьи (кодексы/ФЗ) И пункты (подзаконка).
+    return redaction.articles.filter(
+        kind__in=[Article.Kind.ARTICLE, Article.Kind.POINT]
+    ).count()
 
 
 def _is_safe_to_publish(new_redaction, current_redaction):
@@ -166,9 +169,9 @@ def ingest_target(target, *, client=None):
         )
         job.raw_source = raw
         parsed = parse_text(text, target.document.doc_type)
-        n_articles = sum(1 for a in parsed.articles if a.kind == "article")
+        n_units = sum(1 for a in parsed.articles if a.kind in ("article", "point"))
         log_lines.append(
-            f"Разобрано узлов структуры: {len(parsed.articles)} (статей: {n_articles})."
+            f"Разобрано узлов структуры: {len(parsed.articles)} (статей/пунктов: {n_units})."
         )
         # текущую опубликованную редакцию фиксируем ДО создания черновика (для гейта)
         current = Redaction.objects.filter(document=target.document, is_current=True).first()
