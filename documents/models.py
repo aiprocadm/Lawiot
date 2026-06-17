@@ -135,6 +135,8 @@ class Article(models.Model):
         SECTION = "section", "Раздел"
         CHAPTER = "chapter", "Глава"
         ARTICLE = "article", "Статья"
+        POINT = "point", "Пункт"
+        APPENDIX = "appendix", "Приложение"
 
     redaction = models.ForeignKey(Redaction, related_name="articles", on_delete=models.CASCADE)
     kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.ARTICLE)
@@ -152,7 +154,13 @@ class Article(models.Model):
     anchor = models.SlugField(max_length=100, blank=True)
     search_vector = SearchVectorField(null=True, editable=False)
 
-    _ANCHOR_PREFIX = {"section": "razdel", "chapter": "glava", "article": "st"}
+    _ANCHOR_PREFIX = {
+        "section": "razdel",
+        "chapter": "glava",
+        "article": "st",
+        "point": "p",
+        "appendix": "pril",
+    }
 
     class Meta:
         ordering = ["order"]
