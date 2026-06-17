@@ -41,3 +41,32 @@ def test_utverzhdeno_marks_appendix():
     nodes = parse_points("УТВЕРЖДЕНО\nпостановлением Правительства\n1. Пункт.")
     assert nodes[0].kind == "appendix"
     assert next(n for n in nodes if n.kind == "point").parent_order == nodes[0].order
+
+
+def test_utverzhdenie_noun_is_not_appendix():
+    # «Утверждение»/«утверждать» в прозе — не штамп утверждения, не приложение.
+    nodes = parse_points("Утверждение перечня осуществляется органом.\n1. Пункт.")
+    assert [n.kind for n in nodes] == ["point"]
+
+
+def test_point_body_accumulates_continuation_lines():
+    nodes = parse_points("1. Первая строка пункта.\nвторая строка.\nтретья строка.")
+    assert len(nodes) == 1
+    assert nodes[0].text == "Первая строка пункта.\nвторая строка.\nтретья строка."
+
+
+def test_orphan_subpoint_falls_back_to_container():
+    # Подпункт «1.1» без предшествующего «1»: родитель не найден → ближайший контейнер.
+    nodes = parse_points("Приложение 1\n1.1. Подпункт без родителя.")
+    appendix = nodes[0]
+    subpoint = next(n for n in nodes if n.kind == "point")
+    assert subpoint.number == "1.1"
+    assert subpoint.parent_order == appendix.order
+
+
+def test_chapter_nests_under_appendix_without_section():
+    nodes = parse_points("Приложение 1\nГлава 1. Основные положения\n1. Пункт.")
+    assert [n.kind for n in nodes] == ["appendix", "chapter", "point"]
+    appendix, chapter, point = nodes
+    assert chapter.parent_order == appendix.order
+    assert point.parent_order == chapter.order
