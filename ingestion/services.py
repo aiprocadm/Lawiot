@@ -165,7 +165,7 @@ def ingest_target(target, *, client=None):
             text_hash=text_hash,
         )
         job.raw_source = raw
-        parsed = parse_text(text)
+        parsed = parse_text(text, target.document.doc_type)
         n_articles = sum(1 for a in parsed.articles if a.kind == "article")
         log_lines.append(
             f"Разобрано узлов структуры: {len(parsed.articles)} (статей: {n_articles})."
@@ -220,7 +220,7 @@ def import_manual(
 ):
     """Запасной путь: куратор подаёт байты/текст напрямую → черновик редакции + предложенные связи."""
     raw = store_raw_source(f"manual:{document.slug}", content, content_type, source_url)
-    parsed = parse_document(content, content_type)
+    parsed = parse_document(content, content_type, document.doc_type)
     redaction = create_draft_from_parsed(
         document, parsed, raw_source=raw, redaction_date=redaction_date
     )
@@ -241,7 +241,7 @@ def reparse_redaction(redaction):
     if raw is None:
         raise ValueError("У редакции нет сохранённого RawSource — нечего переразбирать.")
     text = html_to_text(bytes(raw.content), raw.content_type)
-    parsed = parse_text(text)
+    parsed = parse_text(text, redaction.document.doc_type)
     if not parsed.articles and redaction.articles.exists():
         raise ReparseYieldedNothing(
             "Новый разбор дал 0 статей при наличии прежних — операция отменена."

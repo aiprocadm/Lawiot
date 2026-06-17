@@ -146,10 +146,14 @@ def detect_redaction_date(text: str) -> date | None:
     return max(dates) if dates else None
 
 
-def parse_text(text: str) -> ParsedDocument:
+def parse_text(text: str, doc_type: str | None = None) -> ParsedDocument:
     """Разбор УЖЕ нормализованного текста (результат html_to_text):
-    структура (разделы/главы/статьи) + заголовок-эвристика + реквизиты."""
-    articles = parse_structure(text)
+    структура + заголовок-эвристика + реквизиты. Для подзаконных типов
+    (decree/order) — разбор по пунктам/приложениям, иначе — кодексовый."""
+    if doc_type in POINT_DOC_TYPES:
+        articles = parse_points(text)
+    else:
+        articles = parse_structure(text)
     title = detect_title(text)
     num = NUMBER_HINT_RE.search(text)
     dt = DATE_HINT_RE.search(text)
@@ -163,9 +167,11 @@ def parse_text(text: str) -> ParsedDocument:
     )
 
 
-def parse_document(content: bytes, content_type: str = "text/html") -> ParsedDocument:
+def parse_document(
+    content: bytes, content_type: str = "text/html", doc_type: str | None = None
+) -> ParsedDocument:
     """Полный разбор: нормализовать содержимое и разобрать (тонкая обёртка над parse_text)."""
-    return parse_text(html_to_text(content, content_type))
+    return parse_text(html_to_text(content, content_type), doc_type)
 
 
 def parse_points(text: str) -> list[ParsedArticle]:
