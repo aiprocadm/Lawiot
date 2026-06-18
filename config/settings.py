@@ -93,6 +93,8 @@ LOGOUT_REDIRECT_URL = "login"
 # --- Приём данных по расписанию (План 3c) ---------------------------------
 # Cron-выражение ежедневного обхода целей авто-приёма. По умолчанию 03:00.
 SWEEP_CRON = env("SWEEP_CRON", default="0 3 * * *")
+# Cron-выражение ежедневного обхода портала опубликования (обнаружение актов).
+DISCOVERY_CRON = env("DISCOVERY_CRON", default="0 4 * * *")
 
 # django-q2: брокер задач прямо в Postgres (без Redis).
 Q_CLUSTER = {
