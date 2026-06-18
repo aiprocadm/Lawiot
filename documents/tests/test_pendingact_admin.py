@@ -1,6 +1,6 @@
 import pytest
 
-from documents.admin import bind_to_ips
+from documents.admin import bind_to_ips, suggest_nd_candidates
 from documents.models import Document, PendingAct
 
 
@@ -66,3 +66,34 @@ def test_bind_to_ips_preserves_existing_document_promotion_and_requisites():
     assert doc.auto_ingest is True  # включён
     assert "nd=102074279" in doc.source_url  # источник обновлён
     assert Document.objects.filter(slug="prikaz-dup").count() == 1  # не задвоился
+
+
+@pytest.mark.django_db
+def test_suggest_nd_candidates_writes_candidate(monkeypatch):
+    import ingestion.ips_resolve as ipsr
+
+    monkeypatch.setattr(
+        ipsr, "resolve_nd", lambda act, **kw: ipsr.ResolveResult(candidates=["102074279"])
+    )
+    act = PendingAct.objects.create(
+        slug="cand-1", title="Об утверждении", doc_type=Document.DocType.ORDER
+    )
+    suggest_nd_candidates(None, None, PendingAct.objects.filter(pk=act.pk))
+    act.refresh_from_db()
+    assert act.ips_nd == "102074279"
+    assert act.resolution_status == PendingAct.ResolutionStatus.CANDIDATE
+    assert "102074279" in act.note
+
+
+@pytest.mark.django_db
+def test_suggest_nd_candidates_noop_when_empty(monkeypatch):
+    import ingestion.ips_resolve as ipsr
+
+    monkeypatch.setattr(
+        ipsr, "resolve_nd", lambda act, **kw: ipsr.ResolveResult(candidates=[], note="нет")
+    )
+    act = PendingAct.objects.create(slug="cand-2", title="X", doc_type=Document.DocType.ORDER)
+    suggest_nd_candidates(None, None, PendingAct.objects.filter(pk=act.pk))
+    act.refresh_from_db()
+    assert act.ips_nd == ""
+    assert act.resolution_status == PendingAct.ResolutionStatus.NEW

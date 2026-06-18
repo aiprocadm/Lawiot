@@ -48,7 +48,9 @@ def _upsert(doc: PublicationDoc) -> str:
     # уже в корпусе — не плодим напоминание. NB: один Document-запрос на каждый
     # новый акт; при росте корпуса заменить на предзагрузку set (official_number,
     # doc_type) в discover() (преждевременно сейчас — watchlist мал).
-    if pending.is_resolved:
+    # Гард: is_resolved сверяет по official_number — при пустом номере он дал бы
+    # ложное совпадение с любым безномерным актом того же типа; тогда не сверяем.
+    if pending.official_number and pending.is_resolved:
         return "skipped"
     pending.save()
     return "created"

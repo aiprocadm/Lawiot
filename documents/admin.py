@@ -108,6 +108,29 @@ class PendingActResolvedFilter(admin.SimpleListFilter):
         return queryset.exclude(pk__in=resolved_ids)
 
 
+@admin.action(description="Подобрать nd из ИПС (best-effort)")
+def suggest_nd_candidates(modeladmin, request, queryset):
+    """Прогнать best-effort резолвер ИПС по выбранным актам. Найденные кандидаты
+    пишем в note, первый проставляем в пустой ips_nd, статус → «Есть кандидат».
+    Поиск ИПС нестабилен headless — пустой результат штатен (куратор введёт вручную)."""
+    from ingestion.ips_resolve import resolve_nd
+
+    found = 0
+    for act in queryset:
+        result = resolve_nd(act)
+        if not result.candidates:
+            continue
+        if not act.ips_nd:
+            act.ips_nd = result.candidates[0]
+        act.resolution_status = PendingAct.ResolutionStatus.CANDIDATE
+        prefix = f"{act.note}\n" if act.note else ""
+        act.note = f"{prefix}ИПС-кандидаты: {', '.join(result.candidates)}"
+        act.save(update_fields=["ips_nd", "resolution_status", "note"])
+        found += 1
+    if request is not None:
+        modeladmin.message_user(request, f"Найдены кандидаты для актов: {found}.")
+
+
 @admin.action(description="Привязать к ИПС и включить авто-ингест")
 def bind_to_ips(modeladmin, request, queryset):
     """Из ips_nd строим ИПС-источник и заводим Document с авто-ингестом.
@@ -165,7 +188,7 @@ class PendingActAdmin(admin.ModelAdmin):
     list_filter = (PendingActResolvedFilter, "doc_type", "source", "resolution_status")
     search_fields = ("title", "official_number", "eo_number")
     readonly_fields = ("ingest_hint", "added_at", "eo_number", "publication_url")
-    actions = [bind_to_ips]
+    actions = [suggest_nd_candidates, bind_to_ips]
 
     @admin.display(boolean=True, description="В корпусе")
     def resolved(self, obj):
