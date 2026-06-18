@@ -108,12 +108,51 @@ class PendingActResolvedFilter(admin.SimpleListFilter):
         return queryset.exclude(pk__in=resolved_ids)
 
 
+@admin.action(description="Привязать к ИПС и включить авто-ингест")
+def bind_to_ips(modeladmin, request, queryset):
+    """Из ips_nd строим ИПС-источник и создаём/обновляем Document с auto_ingest.
+    Без авто-публикации (auto_publish=False — лестница доверия)."""
+    bound = 0
+    for act in queryset:
+        nd = (act.ips_nd or "").strip()
+        if not nd:
+            continue
+        source_url = f"http://pravo.gov.ru/proxy/ips/?doc_itself=&nd={nd}&print=1"
+        Document.objects.update_or_create(
+            slug=act.slug,
+            defaults={
+                "title": act.title,
+                "official_number": act.official_number,
+                "doc_type": act.doc_type,
+                "issuing_body": act.issuing_body,
+                "source_url": source_url,
+                "auto_ingest": True,
+                "auto_publish": False,
+            },
+        )
+        act.resolution_status = PendingAct.ResolutionStatus.BOUND
+        act.save(update_fields=["resolution_status"])
+        bound += 1
+    if request is not None:
+        modeladmin.message_user(request, f"Привязано актов: {bound}.")
+
+
 @admin.register(PendingAct)
 class PendingActAdmin(admin.ModelAdmin):
-    list_display = ("title", "official_number", "doc_type", "resolved", "added_at")
-    list_filter = (PendingActResolvedFilter, "doc_type")
-    search_fields = ("title", "official_number")
-    readonly_fields = ("ingest_hint", "added_at")
+    list_display = (
+        "title",
+        "official_number",
+        "doc_type",
+        "source",
+        "resolution_status",
+        "document_date",
+        "resolved",
+        "added_at",
+    )
+    list_filter = (PendingActResolvedFilter, "doc_type", "source", "resolution_status")
+    search_fields = ("title", "official_number", "eo_number")
+    readonly_fields = ("ingest_hint", "added_at", "eo_number", "publication_url")
+    actions = [bind_to_ips]
 
     @admin.display(boolean=True, description="В корпусе")
     def resolved(self, obj):
@@ -122,7 +161,7 @@ class PendingActAdmin(admin.ModelAdmin):
     @admin.display(description="Как завести")
     def ingest_hint(self, obj):
         return (
-            f"python manage.py ingest_url --slug {obj.slug} "
-            f'--url "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=<ND>&print=1"  '
-            f"— затем ревью черновика и публикация вручную."
+            f"Заполните ips_nd и примените действие «Привязать к ИПС». "
+            f"Либо вручную: python manage.py ingest_url --slug {obj.slug} "
+            f'--url "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=<ND>&print=1"'
         )
