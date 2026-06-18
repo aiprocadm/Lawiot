@@ -35,3 +35,34 @@ def test_bind_to_ips_skips_without_nd():
     assert not Document.objects.filter(slug="no-nd").exists()
     act.refresh_from_db()
     assert act.resolution_status == PendingAct.ResolutionStatus.NEW
+
+
+@pytest.mark.django_db
+def test_bind_to_ips_preserves_existing_document_promotion_and_requisites():
+    # Документ с тем же slug уже выверен куратором и поднят по лестнице доверия
+    # (auto_publish=True). Повторная привязка НЕ должна сбросить промо или
+    # перетереть реквизиты — только обновить источник и включить авто-ингест.
+    Document.objects.create(
+        slug="prikaz-dup",
+        title="Выверенный куратором заголовок",
+        official_number="999н",
+        doc_type=Document.DocType.ORDER,
+        source_url="http://old",
+        auto_ingest=False,
+        auto_publish=True,
+    )
+    act = PendingAct.objects.create(
+        slug="prikaz-dup",
+        title="Сырой заголовок из находки",
+        official_number="320н",
+        doc_type=Document.DocType.ORDER,
+        ips_nd="102074279",
+    )
+    bind_to_ips(None, None, PendingAct.objects.filter(pk=act.pk))
+    doc = Document.objects.get(slug="prikaz-dup")
+    assert doc.auto_publish is True  # промо НЕ сброшено
+    assert doc.title == "Выверенный куратором заголовок"  # реквизиты НЕ перетёрты
+    assert doc.official_number == "999н"
+    assert doc.auto_ingest is True  # включён
+    assert "nd=102074279" in doc.source_url  # источник обновлён
+    assert Document.objects.filter(slug="prikaz-dup").count() == 1  # не задвоился

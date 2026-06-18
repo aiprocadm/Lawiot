@@ -110,15 +110,19 @@ class PendingActResolvedFilter(admin.SimpleListFilter):
 
 @admin.action(description="Привязать к ИПС и включить авто-ингест")
 def bind_to_ips(modeladmin, request, queryset):
-    """Из ips_nd строим ИПС-источник и создаём/обновляем Document с auto_ingest.
-    Без авто-публикации (auto_publish=False — лестница доверия)."""
+    """Из ips_nd строим ИПС-источник и заводим Document с авто-ингестом.
+
+    Новый документ создаётся с auto_publish=False (лестница доверия). Если документ
+    с таким slug УЖЕ есть (повторная привязка или ручная курация) — НЕ перетираем
+    его реквизиты и НЕ трогаем auto_publish (куратор мог поднять промо); только
+    включаем auto_ingest и обновляем источник."""
     bound = 0
     for act in queryset:
         nd = (act.ips_nd or "").strip()
         if not nd:
             continue
         source_url = f"http://pravo.gov.ru/proxy/ips/?doc_itself=&nd={nd}&print=1"
-        Document.objects.update_or_create(
+        doc, created = Document.objects.get_or_create(
             slug=act.slug,
             defaults={
                 "title": act.title,
@@ -130,11 +134,20 @@ def bind_to_ips(modeladmin, request, queryset):
                 "auto_publish": False,
             },
         )
+        if not created:
+            doc.source_url = source_url
+            doc.auto_ingest = True
+            doc.save(update_fields=["source_url", "auto_ingest"])
         act.resolution_status = PendingAct.ResolutionStatus.BOUND
         act.save(update_fields=["resolution_status"])
         bound += 1
     if request is not None:
-        modeladmin.message_user(request, f"Привязано актов: {bound}.")
+        msg = (
+            f"Привязано актов: {bound}."
+            if bound
+            else "Ни один акт не имеет ips_nd — действие не выполнено."
+        )
+        modeladmin.message_user(request, msg)
 
 
 @admin.register(PendingAct)
