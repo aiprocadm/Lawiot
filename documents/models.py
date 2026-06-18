@@ -250,6 +250,16 @@ class PendingAct(models.Model):
     (напр. 565-ФЗ: в ИПС нет консолидированного текста). Напоминание куратору —
     список виден в admin; «разрешён» выводится из состояния корпуса."""
 
+    class Source(models.TextChoices):
+        AUTO = "auto", "Авто"
+        MANUAL = "manual", "Вручную"
+
+    class ResolutionStatus(models.TextChoices):
+        NEW = "new", "Новый"
+        CANDIDATE = "candidate", "Есть кандидат"
+        BOUND = "bound", "Привязан"
+        DISMISSED = "dismissed", "Отклонён"
+
     slug = models.SlugField(max_length=255, unique=True)
     title = models.TextField()
     official_number = models.CharField(max_length=100, blank=True)
@@ -257,11 +267,32 @@ class PendingAct(models.Model):
     note = models.TextField(blank=True, help_text="Почему ждём / где искать.")
     ips_search_url = models.URLField(blank=True, help_text="Ссылка на поиск ИПС (браузер).")
     added_at = models.DateTimeField(auto_now_add=True)
+    # --- автообнаружение (publication.pravo.gov.ru) ---
+    eo_number = models.CharField(
+        max_length=40, blank=True, help_text="Номер ЭО портала опубликования (пусто у ручных)."
+    )
+    publication_url = models.URLField(blank=True, help_text="Ссылка на акт/PDF на портале.")
+    document_date = models.DateField(null=True, blank=True)
+    issuing_body = models.CharField(max_length=255, blank=True)
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.MANUAL)
+    ips_nd = models.CharField(
+        max_length=40, blank=True, help_text="Привязанный nd ИПС (резолвер/куратор)."
+    )
+    resolution_status = models.CharField(
+        max_length=12, choices=ResolutionStatus.choices, default=ResolutionStatus.NEW
+    )
 
     class Meta:
         ordering = ["added_at"]
         verbose_name = "ожидаемый акт"
         verbose_name_plural = "ожидаемые акты"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["eo_number"],
+                condition=~models.Q(eo_number=""),
+                name="uniq_pendingact_eo",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.official_number}: {self.title[:60]} (ожидается)"
