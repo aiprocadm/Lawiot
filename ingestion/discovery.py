@@ -45,21 +45,26 @@ def _upsert(doc: PublicationDoc) -> str:
         document_date=doc.document_date,
         source=PendingAct.Source.AUTO,
     )
-    if pending.is_resolved:  # уже в корпусе — не плодим напоминание
+    # уже в корпусе — не плодим напоминание. NB: один Document-запрос на каждый
+    # новый акт; при росте корпуса заменить на предзагрузку set (official_number,
+    # doc_type) в discover() (преждевременно сейчас — watchlist мал).
+    if pending.is_resolved:
         return "skipped"
     pending.save()
     return "created"
 
 
 def discover(
-    authority_ids=None,
+    authority_ids: list[str] | None = None,
     *,
     client: httpx.Client | None = None,
     since_date: date | None = None,
     max_pages: int | None = None,
 ) -> DiscoverySummary:
     """Обойти органы, завести PendingAct для новых актов. Идемпотентно по eo_number.
-    Изоляция по органу: сбой одного не валит остальные."""
+    Изоляция двойная (как в scheduling.sweep_targets): внутренний try/except — сбой
+    одного документа (напр. гонка IntegrityError) не валит остальные акты органа;
+    внешний — сбой обхода/сети органа не валит остальные органы."""
     summary = DiscoverySummary()
     authority_ids = authority_ids or DISCOVERY_AUTHORITIES
     for authority_id in authority_ids:
@@ -68,9 +73,13 @@ def discover(
                 authority_id, client=client, since_date=since_date, max_pages=max_pages
             ):
                 summary.total += 1
-                result = _upsert(doc)
+                try:
+                    result = _upsert(doc)
+                except Exception:  # один сбойный документ не должен оборвать орган
+                    summary.failed += 1
+                    continue
                 setattr(summary, result, getattr(summary, result) + 1)
-        except Exception:  # сетка: сбой по одному органу не обрывает обход
+        except Exception:  # сбой обхода/сети органа не обрывает остальные органы
             summary.failed += 1
     return summary
 

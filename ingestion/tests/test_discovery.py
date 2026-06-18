@@ -47,4 +47,26 @@ def test_discover_skips_already_in_corpus(monkeypatch):
     monkeypatch.setattr(PendingAct, "is_resolved", property(lambda self: True))
     summary = discover(["auth-1"], client=_one_page_client())
     assert summary.created == 0
+    assert summary.skipped == 2
     assert PendingAct.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_discover_isolates_failing_document(monkeypatch):
+    # Сбой _upsert на одном документе не должен оборвать обход остальных.
+    import ingestion.discovery as disc
+
+    real_upsert = disc._upsert
+    seen = {"n": 0}
+
+    def flaky(doc):
+        seen["n"] += 1
+        if seen["n"] == 1:
+            raise RuntimeError("boom")
+        return real_upsert(doc)
+
+    monkeypatch.setattr(disc, "_upsert", flaky)
+    summary = discover(["auth-1"], client=_one_page_client())
+    assert summary.failed == 1
+    assert summary.created == 1  # второй документ всё равно обработан
+    assert PendingAct.objects.count() == 1
