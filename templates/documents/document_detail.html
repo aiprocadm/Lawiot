@@ -16,11 +16,13 @@
       <dt>Действующая редакция</dt><dd>{{ redaction.redaction_date|date:"d.m.Y" }}</dd>
       <dt>Структура</dt>
       <dd>
-        {% if section_count %}{{ section_count }} раздел(ов) · {% endif %}
-        {% if chapter_count %}{{ chapter_count }} глав(ы) · {% endif %}
-        {% if appendix_count %}{{ appendix_count }} приложени(й) · {% endif %}
-        {% if point_count %}{{ point_count }} пункт(ов) · {% endif %}
-        {% if article_count %}{{ article_count }} статей{% endif %}
+        {# « · » ставится ПЕРЕД элементом, только если что-то уже отрендерено выше — #}
+        {# так разделитель всегда между элементами, без висячего хвоста у любого «последнего». #}
+        {% if section_count %}{{ section_count }} раздел(ов){% endif %}
+        {% if chapter_count %}{% if section_count %} · {% endif %}{{ chapter_count }} глав(ы){% endif %}
+        {% if appendix_count %}{% if section_count or chapter_count %} · {% endif %}{{ appendix_count }} приложени(й){% endif %}
+        {% if point_count %}{% if section_count or chapter_count or appendix_count %} · {% endif %}{{ point_count }} пункт(ов){% endif %}
+        {% if article_count %}{% if section_count or chapter_count or appendix_count or point_count %} · {% endif %}{{ article_count }} статей{% endif %}
         {% if not section_count and not chapter_count and not article_count and not point_count and not appendix_count %}—{% endif %}
       </dd>
     </dl>
