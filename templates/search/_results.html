@@ -7,7 +7,7 @@
       {{ r.document.title }}{% if r.article_label %} — {{ r.article_label }}{% endif %}
     </a>
   </h3>
-  <small>{{ r.document.get_doc_type_display }} № {{ r.document.official_number }} · {{ r.document.get_status_display }}</small>
+  <small>{{ r.document.get_doc_type_display }}{% if r.document.official_number %} № {{ r.document.official_number }}{% endif %} · {{ r.document.get_status_display }}</small>
   <p>{{ r.snippet }}</p>
 </article>
 {% empty %}

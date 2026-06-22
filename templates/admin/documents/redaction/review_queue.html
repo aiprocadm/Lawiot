@@ -8,7 +8,7 @@
     {% for r in drafts %}
       <li>
         <a href="{% url 'admin:documents_redaction_change' r.pk %}">{{ r.document }}</a>
-        — ред. от {{ r.redaction_date }}
+        — ред. от {{ r.redaction_date|date:"d.m.Y" }}
         · <a href="{% url 'admin:documents_redaction_diff' r.pk %}">diff</a>
       </li>
     {% endfor %}
