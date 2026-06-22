@@ -28,6 +28,7 @@
       <ul>
         {% if user.is_authenticated %}
         <li><a href="{% url 'search' %}">Поиск</a></li>
+        <li><a href="{% url 'assistant' %}">Ассистент</a></li>
         <li><a href="{% url 'changes_feed' %}">Изменения</a></li>
         {% if user.is_staff %}<li><a href="{% url 'admin:index' %}">Курирование</a></li>{% endif %}
         <li>

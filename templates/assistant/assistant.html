@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Ассистент — Lawiot{% endblock %}
+{% block content %}
+<h1>Ассистент по трудовому праву</h1>
+<p><small>Задайте вопрос на естественном языке — ответ строится по статьям корпуса со ссылками.</small></p>
+
+<form method="get"
+      hx-get="{% url 'assistant' %}"
+      hx-target="#assistant-answer"
+      hx-push-url="true">
+  <input type="search" name="q" value="{{ question }}" placeholder="Например: положена ли компенсация за неиспользованный отпуск при увольнении?" aria-label="Вопрос">
+  <button type="submit">Спросить</button>
+</form>
+
+<div id="assistant-answer" aria-live="polite">
+  {% include "assistant/_answer.html" %}
+</div>
+{% endblock %}

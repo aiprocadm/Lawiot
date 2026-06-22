@@ -6,6 +6,7 @@ beautifulsoup4>=4.12
 django-q2>=1.7
 pymorphy3>=2.0
 pymorphy3-dicts-ru
+anthropic>=0.40
 croniter>=2.0
 gunicorn>=22.0
 whitenoise>=6.6

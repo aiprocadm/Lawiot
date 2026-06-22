@@ -1,0 +1,23 @@
+{% if answer %}
+  {% if answer.mode == "no_results" %}
+    <p>В доступном корпусе не нашлось статей по вашему вопросу. Попробуйте переформулировать.</p>
+  {% else %}
+    {% if answer.answer_text %}
+      <article>
+        <p>{{ answer.answer_text|linebreaksbr }}</p>
+        <footer><small>Справочная информация на основе корпуса, не юридическая консультация.</small></footer>
+      </article>
+    {% else %}
+      <p><small>Статьи корпуса по вашему вопросу{% if answer.error %} (автоматический ответ временно недоступен){% endif %}:</small></p>
+    {% endif %}
+    <h3>Статьи-основания</h3>
+    <ul>
+      {% for a in answer.articles %}
+      <li><a href="{{ a.url }}">{{ a.document_title }} — {{ a.article_label }}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% elif question %}
+{% else %}
+  <p><small>Введите вопрос выше — ассистент ответит, опираясь на статьи трудового законодательства из корпуса.</small></p>
+{% endif %}

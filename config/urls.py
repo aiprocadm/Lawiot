@@ -11,6 +11,7 @@ urlpatterns = [
     path("accounts/", include("django.contrib.auth.urls")),
     path("", views.document_list, name="document_list"),
     path("search/", search_views.search_view, name="search"),
+    path("assistant/", include("assistant.urls")),
     path("changes/", views.changes_feed, name="changes_feed"),
     path("changes/feed/", login_required(ChangesFeed()), name="changes_feed_atom"),
     path("doc/<slug:slug>/", views.document_detail, name="document_detail"),
