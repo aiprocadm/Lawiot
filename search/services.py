@@ -18,6 +18,17 @@ class SearchResult:
     article_label: str | None = None
 
 
+@dataclass
+class ArticleHit:
+    """Совпадение статьи при поиске В ПРЕДЕЛАХ одного акта."""
+
+    anchor: str
+    label: str
+    title: str
+    snippet: str
+    rank: float
+
+
 # Сентинелы-маркеры подсветки: ts_headline вставит их в НЕэкранированный текст,
 # мы экранируем всё целиком, затем вернём <mark> только вокруг маркеров.
 _HL_START = "@@LAWIOT_HL_START@@"
@@ -174,3 +185,39 @@ def search_documents(
             )
 
     return sorted(results, key=lambda x: x.rank, reverse=True)
+
+
+def search_in_document(document, query_text, *, limit=50):
+    """Поиск статей В ПРЕДЕЛАХ одного акта (текущая опубликованная редакция).
+
+    Без схлопывания по документу (в отличие от search_documents): возвращает все
+    совпавшие статьи, ранжированные ts_rank. Переиспользует расширение запроса и
+    двухфазную подсветку.
+    """
+    query_text = (query_text or "").strip()
+    if not query_text:
+        return []
+
+    query = _build_query(query_text)
+    hits = list(
+        Article.objects.filter(
+            redaction__document=document,
+            redaction__is_current=True,
+            redaction__review_status=Redaction.ReviewStatus.PUBLISHED,
+        )
+        .filter(search_vector=query)
+        .annotate(rank=SearchRank(F("search_vector"), query))
+        .defer("text", "search_vector", "redaction__full_text", "redaction__search_vector")
+        .order_by("-rank")[:limit]
+    )
+    snippets = _snippets_by_pk(Article.objects, "text", [h.pk for h in hits], query)
+    return [
+        ArticleHit(
+            anchor=h.anchor,
+            label=f"{h.get_kind_display()} {h.number}".strip(),
+            title=h.title,
+            snippet=_safe_snippet(snippets.get(h.pk)),
+            rank=h.rank,
+        )
+        for h in hits
+    ]

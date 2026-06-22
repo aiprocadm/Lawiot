@@ -1,0 +1,15 @@
+{% if query %}
+  {% if hits %}
+    <p><small>Совпадений: {{ hits|length }}</small></p>
+    <ul>
+      {% for h in hits %}
+      <li>
+        <a href="#{{ h.anchor }}">{{ h.label }}{% if h.title %} — {{ h.title }}{% endif %}</a>
+        {% if h.snippet %}<br><small>{{ h.snippet }}</small>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p><small>В этом акте ничего не найдено по запросу «{{ query }}».</small></p>
+  {% endif %}
+{% endif %}

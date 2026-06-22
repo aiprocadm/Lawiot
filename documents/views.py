@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, render
 
 from documents.diffing import diff_articles
 from documents.models import Article, Document, Link, Redaction
+from search.services import search_in_document
 
 PAGE_SIZE = 20
 
@@ -47,6 +48,8 @@ def document_detail(request, slug):
         a.child_nodes = children_map[a.id]
     article_tree = children_map[None]
     kind_counts = Counter(a.kind for a in articles)
+    # Якоря статей этого акта — для внутренних гиперссылок «ст. N» в тексте.
+    anchors = {a.anchor for a in articles if a.anchor}
     visible_statuses = [Link.Status.CONFIRMED]
     if request.user.is_staff:
         visible_statuses.append(Link.Status.SUGGESTED)
@@ -73,6 +76,7 @@ def document_detail(request, slug):
             "document": document,
             "redaction": redaction,
             "article_tree": article_tree,
+            "anchors": anchors,
             "amendments": amendments,
             "references": references,
             "incoming": incoming,
@@ -84,6 +88,19 @@ def document_detail(request, slug):
             "point_count": kind_counts.get(Article.Kind.POINT, 0),
             "appendix_count": kind_counts.get(Article.Kind.APPENDIX, 0),
         },
+    )
+
+
+@login_required
+def document_search(request, slug):
+    """Поиск по тексту акта (HTMX-эндпоинт) — возвращает частичку с совпадениями."""
+    document = get_object_or_404(Document, slug=slug)
+    query = request.GET.get("q", "").strip()
+    hits = search_in_document(document, query) if query else []
+    return render(
+        request,
+        "documents/_find_results.html",
+        {"document": document, "query": query, "hits": hits},
     )
 
 
@@ -167,9 +184,16 @@ def document_print(request, slug):
     for a in articles:
         a.child_nodes = children_map[a.id]
     article_tree = children_map[None]
+    # Якоря статей этого акта — _article_node.html линкует «ст. N» в тексте.
+    anchors = {a.anchor for a in articles if a.anchor}
 
     return render(
         request,
         "documents/document_print.html",
-        {"document": document, "redaction": redaction, "article_tree": article_tree},
+        {
+            "document": document,
+            "redaction": redaction,
+            "article_tree": article_tree,
+            "anchors": anchors,
+        },
     )

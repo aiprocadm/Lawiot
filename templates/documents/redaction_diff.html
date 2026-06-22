@@ -6,7 +6,7 @@
   <a href="{% url 'document_detail' document.slug %}">← {{ document.title|truncatechars:80 }}</a>
 </nav>
 
-<h1>Изменения: редакция от {{ older.redaction_date }} → текущая от {{ current.redaction_date }}</h1>
+<h1>Изменения: редакция от {{ older.redaction_date|date:"d.m.Y" }} → текущая от {{ current.redaction_date|date:"d.m.Y" }}</h1>
 
 {% if not diffs %}
 <p>Текстовых изменений между этими редакциями нет.</p>
