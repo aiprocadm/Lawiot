@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, render
 
 from documents.diffing import diff_articles
 from documents.models import Article, Document, Link, Redaction
+from search.services import search_in_document
 
 PAGE_SIZE = 20
 
@@ -84,6 +85,19 @@ def document_detail(request, slug):
             "point_count": kind_counts.get(Article.Kind.POINT, 0),
             "appendix_count": kind_counts.get(Article.Kind.APPENDIX, 0),
         },
+    )
+
+
+@login_required
+def document_search(request, slug):
+    """Поиск по тексту акта (HTMX-эндпоинт) — возвращает частичку с совпадениями."""
+    document = get_object_or_404(Document, slug=slug)
+    query = request.GET.get("q", "").strip()
+    hits = search_in_document(document, query) if query else []
+    return render(
+        request,
+        "documents/_find_results.html",
+        {"document": document, "query": query, "hits": hits},
     )
 
 
