@@ -41,6 +41,15 @@
   </header>
 </article>
 
+<section>
+  <input type="search" name="q"
+         placeholder="Найти в этом акте…" aria-label="Поиск по тексту акта"
+         hx-get="{% url 'document_search' document.slug %}"
+         hx-trigger="keyup changed delay:400ms, search"
+         hx-target="#find-results">
+  <div id="find-results" aria-live="polite"></div>
+</section>
+
 <div class="grid">
   <section>
     {% if article_tree %}
