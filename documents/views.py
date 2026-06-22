@@ -148,3 +148,28 @@ def redaction_diff(request, slug, from_pk):
         "documents/redaction_diff.html",
         {"document": document, "older": older, "current": current, "diffs": diffs},
     )
+
+
+@login_required
+def document_print(request, slug):
+    """Версия для печати: чистая standalone-страница с полным текстом акта."""
+    document = get_object_or_404(Document, slug=slug)
+    redaction = document.redactions.filter(
+        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
+    ).first()
+    if redaction is None:
+        raise Http404("Нет опубликованной редакции")
+
+    articles = list(redaction.articles.all())
+    children_map = defaultdict(list)
+    for a in articles:
+        children_map[a.parent_id].append(a)
+    for a in articles:
+        a.child_nodes = children_map[a.id]
+    article_tree = children_map[None]
+
+    return render(
+        request,
+        "documents/document_print.html",
+        {"document": document, "redaction": redaction, "article_tree": article_tree},
+    )

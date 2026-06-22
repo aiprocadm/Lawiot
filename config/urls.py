@@ -14,6 +14,7 @@ urlpatterns = [
     path("changes/", views.changes_feed, name="changes_feed"),
     path("changes/feed/", login_required(ChangesFeed()), name="changes_feed_atom"),
     path("doc/<slug:slug>/", views.document_detail, name="document_detail"),
+    path("doc/<slug:slug>/print/", views.document_print, name="document_print"),
     path(
         "doc/<slug:slug>/diff/<int:from_pk>/",
         views.redaction_diff,

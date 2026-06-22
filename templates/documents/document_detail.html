@@ -5,6 +5,7 @@
 <article>
   <header>
     <h1>{{ document.title }}</h1>
+    <p><a href="{% url 'document_print' document.slug %}">Версия для печати</a></p>
     <dl class="passport">
       <dt>Вид документа</dt><dd>{{ document.get_doc_type_display }}</dd>
       <dt>Номер</dt><dd>{{ document.official_number|default:"—" }}</dd>

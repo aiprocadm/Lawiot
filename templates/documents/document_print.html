@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>{{ document.title }} — печать</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", serif; max-width: 48em;
+           margin: 2em auto; line-height: 1.5; color: #111; padding: 0 1em; }
+    h1 { font-size: 1.6em; }
+    .meta { color: #555; font-size: 0.9em; margin-bottom: 2em; }
+    section h2, section h3, section h4, section h5, section h6 { margin-top: 1.4em; }
+    .toolbar { margin: 1em 0 2em; }
+    @media print {
+      body { margin: 0; max-width: none; }
+      .toolbar { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">Печать</button>
+    <a href="{% url 'document_detail' document.slug %}">← к документу</a>
+  </div>
+  <h1>{{ document.title }}</h1>
+  <p class="meta">
+    {{ document.get_doc_type_display }}{% if document.official_number %} № {{ document.official_number }}{% endif %}
+    · {{ document.get_status_display }}
+    · редакция от {{ redaction.redaction_date|date:"d.m.Y" }}
+  </p>
+  {% for node in article_tree %}{% include "documents/_article_node.html" with node=node level=2 %}{% endfor %}
+</body>
+</html>
