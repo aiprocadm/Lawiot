@@ -1,7 +1,7 @@
 {% load doc_refs %}{% with level=level|default:3 %}
 <section id="{{ node.anchor }}">
   <h{{ level }}>{{ node.get_kind_display }}{% if node.number %} {{ node.number }}.{% endif %}{% if node.title %} {{ node.title }}{% endif %}</h{{ level }}>
-  {% if node.text %}{{ node.text|linkify_refs:anchors }}{% endif %}
+  {% if node.text %}{{ node.text|linkify_refs:links }}{% endif %}
   {% if level < 6 %}{% with next_level=level|add:1 %}{% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child level=next_level %}{% endfor %}{% endwith %}{% else %}{% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child level=level %}{% endfor %}{% endif %}
 </section>
 {% endwith %}
