@@ -48,6 +48,8 @@ def document_detail(request, slug):
         a.child_nodes = children_map[a.id]
     article_tree = children_map[None]
     kind_counts = Counter(a.kind for a in articles)
+    # Якоря статей этого акта — для внутренних гиперссылок «ст. N» в тексте.
+    anchors = {a.anchor for a in articles if a.anchor}
     visible_statuses = [Link.Status.CONFIRMED]
     if request.user.is_staff:
         visible_statuses.append(Link.Status.SUGGESTED)
@@ -74,6 +76,7 @@ def document_detail(request, slug):
             "document": document,
             "redaction": redaction,
             "article_tree": article_tree,
+            "anchors": anchors,
             "amendments": amendments,
             "references": references,
             "incoming": incoming,
