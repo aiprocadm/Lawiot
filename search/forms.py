@@ -26,3 +26,12 @@ class SearchForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={"type": "date"}),
     )
+    sort = forms.ChoiceField(
+        label="Сортировка",
+        required=False,
+        choices=[
+            ("relevance", "По релевантности"),
+            ("date", "По дате (новые первыми)"),
+        ],
+        initial="relevance",
+    )

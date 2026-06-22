@@ -23,6 +23,13 @@ def search_view(request):
             date_from=cd["date_from"],
             date_to=cd["date_to"],
         )
+        if cd.get("sort") == "date":
+            # Новые первыми по дате подписания; акты без даты — в конце.
+            results = sorted(
+                results,
+                key=lambda r: (r.document.sign_date is not None, r.document.sign_date),
+                reverse=True,
+            )
 
     page_obj = Paginator(results, PAGE_SIZE).get_page(request.GET.get("page"))
 
