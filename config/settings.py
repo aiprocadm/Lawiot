@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "documents",
     "search",
     "ingestion",
+    "assistant",
 ]
 
 MIDDLEWARE = [
@@ -95,6 +96,11 @@ LOGOUT_REDIRECT_URL = "login"
 SWEEP_CRON = env("SWEEP_CRON", default="0 3 * * *")
 # Cron-выражение ежедневного обхода портала опубликования (обнаружение актов).
 DISCOVERY_CRON = env("DISCOVERY_CRON", default="0 4 * * *")
+
+# --- AI-ассистент (RAG) ---------------------------------------------------
+# Ключ Claude API. Пусто (по умолчанию) → ассистент работает в режиме
+# «только извлечение» (показывает релевантные статьи, без синтеза ответа).
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 
 # django-q2: брокер задач прямо в Postgres (без Redis).
 Q_CLUSTER = {
