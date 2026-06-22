@@ -16,3 +16,15 @@ def test_profzabolevanie_expands_to_legal_form():
     q = build_expanded_tsquery("профзаболевание")
     assert q is not None
     assert "профессионального" in q and "заболевания" in q
+
+
+def test_disciplinarka_expands_to_legal_form():
+    q = build_expanded_tsquery("дисциплинарка")
+    assert q is not None
+    assert "дисциплинарное" in q and "взыскание" in q
+
+
+def test_matotvetstvennost_expands_to_legal_form():
+    q = build_expanded_tsquery("матответственность")
+    assert q is not None
+    assert "материальной" in q and "ответственности" in q
