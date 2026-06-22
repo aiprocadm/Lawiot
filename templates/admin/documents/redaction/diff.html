@@ -9,7 +9,7 @@
 {% if not current %}
   <p class="help">Текущей опубликованной редакции нет — это будет первая публикация, сравнивать не с чем.</p>
 {% else %}
-  <p class="help">Сравнение с текущей редакцией от {{ current.redaction_date }}.</p>
+  <p class="help">Сравнение с текущей редакцией от {{ current.redaction_date|date:"d.m.Y" }}.</p>
 {% endif %}
 
 {% for d in diffs %}
