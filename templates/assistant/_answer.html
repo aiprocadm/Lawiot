@@ -5,6 +5,9 @@
     {% if answer.answer_text %}
       <article>
         <p>{{ answer.answer_text|linebreaksbr }}</p>
+        {% if answer.unverified_citations %}
+        <p><small>⚠ В ответе упомянуты статьи вне найденного набора ({{ answer.unverified_citations|join:", " }}) — проверьте по первоисточнику.</small></p>
+        {% endif %}
         <footer><small>Справочная информация на основе корпуса, не юридическая консультация.</small></footer>
       </article>
     {% else %}

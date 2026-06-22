@@ -67,6 +67,24 @@ def test_fake_client_synthesizes(published_doc):
 
 
 @pytest.mark.django_db
+def test_synthesized_flags_unverified_citation(published_doc):
+    # Модель цитирует статью вне найденного набора (только ст.127) → флаг.
+    client = _FakeClient(resp=_FakeResp("См. Статья 127, а также Статья 999."))
+    ans = answer_question("отпуск увольнение компенсация", client=client)
+    assert ans.mode == MODE_SYNTHESIZED
+    assert ans.unverified_citations == ["999"]
+
+
+@pytest.mark.django_db
+def test_empty_synthesis_falls_back(published_doc):
+    client = _FakeClient(resp=_FakeResp("   "))  # пустой текст (напр. max_tokens)
+    ans = answer_question("отпуск увольнение компенсация", client=client)
+    assert ans.mode == MODE_RETRIEVAL_ONLY
+    assert ans.error == "empty"
+    assert ans.articles
+
+
+@pytest.mark.django_db
 def test_api_error_falls_back(published_doc):
     client = _FakeClient(exc=RuntimeError("boom"))
     ans = answer_question("отпуск увольнение компенсация", client=client)

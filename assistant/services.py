@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from django.conf import settings
 
+from assistant.citations import unverified_citations
 from assistant.prompts import SYSTEM_PROMPT, build_user_content
 from assistant.retrieval import retrieve
 
@@ -21,7 +22,12 @@ except ImportError:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-opus-4-8"
-MAX_TOKENS = 4000
+# Потолок выходных токенов ВКЛЮЧАЕТ токены мышления (adaptive). Для короткого
+# grounded-ответа 16000 с запасом (non-streaming, без риска таймаута), а
+# effort=medium ограничивает глубину мышления — чтобы бюджет не съело мышление,
+# оставив пустой ответ.
+MAX_TOKENS = 16000
+EFFORT = "medium"
 
 MODE_SYNTHESIZED = "synthesized"
 MODE_RETRIEVAL_ONLY = "retrieval_only"
@@ -35,6 +41,9 @@ class AssistantAnswer:
     answer_text: str | None = None
     mode: str = MODE_RETRIEVAL_ONLY
     error: str | None = None
+    # Номера статей, упомянутых в ответе, но отсутствующих в найденном наборе
+    # (сигнал возможной галлюцинации — показываем пользователю предупреждение).
+    unverified_citations: list = field(default_factory=list)
 
 
 def _default_client():
@@ -66,6 +75,7 @@ def answer_question(question, *, client=None):
             model=MODEL,
             max_tokens=MAX_TOKENS,
             thinking={"type": "adaptive"},
+            output_config={"effort": EFFORT},
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": build_user_content(question, articles)}],
         )
@@ -83,6 +93,17 @@ def answer_question(question, *, client=None):
     text = "".join(
         b.text for b in resp.content if getattr(b, "type", None) == "text"
     ).strip()
+    # Пустой ответ (напр. бюджет съело мышление → stop_reason=max_tokens) →
+    # не показываем пустой «синтез», откатываемся к статьям.
+    if not text:
+        return AssistantAnswer(
+            question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error="empty"
+        )
+
     return AssistantAnswer(
-        question=question, articles=articles, answer_text=text, mode=MODE_SYNTHESIZED
+        question=question,
+        articles=articles,
+        answer_text=text,
+        mode=MODE_SYNTHESIZED,
+        unverified_citations=unverified_citations(text, articles),
     )
