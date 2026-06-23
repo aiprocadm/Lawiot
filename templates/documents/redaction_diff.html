@@ -10,6 +10,18 @@
 
 {% if not diffs %}
 <p>Текстовых изменений между этими редакциями нет.</p>
+{% else %}
+<p>
+  <button type="button"
+          hx-get="{% url 'redaction_diff_explain' document.slug older.pk %}"
+          hx-target="#diff-ai-explanation"
+          hx-swap="innerHTML"
+          hx-indicator="#diff-ai-loading">
+    Объяснить изменения (AI)
+  </button>
+  <span id="diff-ai-loading" class="htmx-indicator"><small>…готовлю объяснение</small></span>
+</p>
+<div id="diff-ai-explanation" aria-live="polite"></div>
 {% endif %}
 
 {% for d in diffs %}

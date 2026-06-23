@@ -1,0 +1,11 @@
+{% if explanation.mode == "explained" %}
+<article class="diff-ai">
+  <h3>Что изменилось (AI-объяснение)</h3>
+  <p>{{ explanation.text|linebreaksbr }}</p>
+  <footer><small>Справочная информация на основе текста редакций, не юридическая консультация.</small></footer>
+</article>
+{% elif explanation.mode == "no_changes" %}
+<p><small>Текстовых изменений между редакциями нет — объяснять нечего.</small></p>
+{% else %}
+<p><small>Автоматическое объяснение сейчас недоступно. Сравнение по статьям выше остаётся в силе.</small></p>
+{% endif %}
