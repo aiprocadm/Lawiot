@@ -83,6 +83,16 @@ def test_card_shows_level_source_and_origin(client, django_user_model):
 
 
 @pytest.mark.django_db
+def test_card_badge_shows_reconstruction(client, django_user_model):
+    user = django_user_model.objects.create_user("r-recon", password="x")
+    client.force_login(user)
+    _published_doc(text_status="reconstruction")
+    html = client.get("/doc/card-act/").content.decode()
+    assert "Автоматическая реконструкция" in html
+    assert "text-status-reconstruction" in html
+
+
+@pytest.mark.django_db
 def test_card_source_link_present_only_when_url_set(client, django_user_model):
     user = django_user_model.objects.create_user("r-link", password="x")
     client.force_login(user)

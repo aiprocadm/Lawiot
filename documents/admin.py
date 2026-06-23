@@ -22,8 +22,17 @@ class ArticleInline(admin.TabularInline):
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ("title", "doc_type", "official_number", "status", "auto_ingest", "auto_publish")
-    list_filter = ("doc_type", "status", "auto_ingest", "auto_publish")
+    list_display = (
+        "title",
+        "doc_type",
+        "official_number",
+        "status",
+        "level",
+        "source_status",
+        "auto_ingest",
+        "auto_publish",
+    )
+    list_filter = ("doc_type", "status", "level", "source_status", "auto_ingest", "auto_publish")
     list_editable = ("auto_ingest", "auto_publish")
     search_fields = ("title", "official_number")
     prepopulated_fields = {"slug": ("official_number",)}
@@ -31,8 +40,8 @@ class DocumentAdmin(admin.ModelAdmin):
 
 @admin.register(Redaction)
 class RedactionAdmin(admin.ModelAdmin):
-    list_display = ("document", "redaction_date", "review_status", "is_current")
-    list_filter = ("review_status", "is_current")
+    list_display = ("document", "redaction_date", "review_status", "text_status", "is_current")
+    list_filter = ("review_status", "text_status", "is_current")
     change_list_template = "admin/documents/redaction/change_list.html"
     inlines = [ArticleInline]
     actions = ["publish_selected", "reparse_from_raw"]
