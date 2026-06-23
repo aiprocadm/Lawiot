@@ -87,6 +87,7 @@ def document_detail(request, slug):
             "redaction": redaction,
             "article_tree": article_tree,
             "links": {"anchors": anchors, **build_corpus_links(exclude_slug=document.slug)},
+            "show_ai": True,  # кнопка «разъяснить» — только в интерактивном reader, не в печати
             "amendments": amendments,
             "references": references,
             "incoming": incoming,
@@ -98,6 +99,30 @@ def document_detail(request, slug):
             "point_count": kind_counts.get(Article.Kind.POINT, 0),
             "appendix_count": kind_counts.get(Article.Kind.APPENDIX, 0),
         },
+    )
+
+
+@login_required
+def article_explain(request, slug, anchor):
+    """AI-разъяснение одной статьи «простыми словами» (htmx-ленивый партиал).
+
+    Стоит 0 по умолчанию — вызывается только по кнопке у статьи. Без ключа/при
+    ошибке API — режим `unavailable`, исходный текст статьи остаётся виден.
+    """
+    from assistant.article_explain import explain_article
+
+    document = get_object_or_404(Document, slug=slug)
+    redaction = document.redactions.filter(
+        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
+    ).first()
+    if redaction is None:
+        raise Http404("Нет опубликованной редакции")
+    article = get_object_or_404(Article, redaction=redaction, anchor=anchor)
+    explanation = explain_article(article.text)
+    return render(
+        request,
+        "documents/_article_explanation.html",
+        {"explanation": explanation},
     )
 
 

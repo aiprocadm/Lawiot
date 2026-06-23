@@ -20,6 +20,11 @@ urlpatterns = [
     path("changes/feed/", login_required(ChangesFeed()), name="changes_feed_atom"),
     path("doc/<slug:slug>/", views.document_detail, name="document_detail"),
     path("doc/<slug:slug>/find/", views.document_search, name="document_search"),
+    path(
+        "doc/<slug:slug>/article/<str:anchor>/explain/",
+        views.article_explain,
+        name="article_explain",
+    ),
     path("doc/<slug:slug>/print/", views.document_print, name="document_print"),
     path("doc/<slug:slug>/export.docx", views.document_export_docx, name="document_export_docx"),
     path(
