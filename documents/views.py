@@ -326,7 +326,12 @@ def document_export_docx(request, slug):
         meta += f" № {document.official_number}"
     meta += f" · редакция от {redaction.redaction_date:%d.%m.%Y}"
     docx.add_paragraph(meta)
-    docx.add_paragraph("Справочная информация на основе корпуса, не официальное опубликование.")
+    docx.add_paragraph(
+        "Не является источником официального опубликования и не заменяет "
+        "юридическую консультацию. Официальный источник: pravo.gov.ru."
+    )
+    if document.source_url:
+        docx.add_paragraph(f"Официальный первоисточник: {document.source_url}")
 
     for a in _articles_in_reading_order(list(redaction.articles.all())):
         heading = a.get_kind_display()
