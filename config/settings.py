@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "ingestion",
     "assistant",
     "practice",
+    "bookmarks",
 ]
 
 MIDDLEWARE = [
