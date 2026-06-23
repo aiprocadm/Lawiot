@@ -1,9 +1,10 @@
+import io
 from collections import Counter, defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Exists, F, OuterRef
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 
 from documents.diffing import diff_articles
@@ -197,3 +198,70 @@ def document_print(request, slug):
             "anchors": anchors,
         },
     )
+
+
+_DOCX_HEADING_LEVEL = {
+    Article.Kind.SECTION: 1,
+    Article.Kind.CHAPTER: 2,
+    Article.Kind.APPENDIX: 2,
+    Article.Kind.ARTICLE: 3,
+    Article.Kind.POINT: 4,
+}
+_DOCX_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
+
+
+def _articles_in_reading_order(articles):
+    """DFS дерева статей в порядке чтения (раздел→глава→статья, по `order`)."""
+    children = defaultdict(list)
+    for a in articles:
+        children[a.parent_id].append(a)
+
+    def walk(parent_id):
+        for a in sorted(children[parent_id], key=lambda x: x.order):
+            yield a
+            yield from walk(a.id)
+
+    return list(walk(None))
+
+
+@login_required
+def document_export_docx(request, slug):
+    """Экспорт акта в .docx (как у классических СПС «сохранить в Word»).
+
+    Форматирует уже опубликованный (кураторский) текст — не генерирует новых норм.
+    """
+    from docx import Document as DocxDocument
+
+    document = get_object_or_404(Document, slug=slug)
+    redaction = document.redactions.filter(
+        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
+    ).first()
+    if redaction is None:
+        raise Http404("Нет опубликованной редакции")
+
+    docx = DocxDocument()
+    docx.add_heading(document.title, level=0)
+    meta = document.get_doc_type_display()
+    if document.official_number:
+        meta += f" № {document.official_number}"
+    meta += f" · редакция от {redaction.redaction_date:%d.%m.%Y}"
+    docx.add_paragraph(meta)
+    docx.add_paragraph("Справочная информация на основе корпуса, не официальное опубликование.")
+
+    for a in _articles_in_reading_order(list(redaction.articles.all())):
+        heading = a.get_kind_display()
+        if a.number:
+            heading += f" {a.number}"
+        if a.title:
+            heading += f". {a.title}"
+        docx.add_heading(heading, level=_DOCX_HEADING_LEVEL.get(a.kind, 3))
+        if a.text:
+            docx.add_paragraph(a.text)
+
+    buf = io.BytesIO()
+    docx.save(buf)
+    response = HttpResponse(buf.getvalue(), content_type=_DOCX_CONTENT_TYPE)
+    response["Content-Disposition"] = f'attachment; filename="{document.slug}.docx"'
+    return response
