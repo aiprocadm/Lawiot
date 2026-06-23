@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, render
 
 from documents.diffing import diff_articles
 from documents.models import Article, Document, Link, Redaction
+from documents.refs import build_corpus_links
 from search.services import search_in_document
 
 PAGE_SIZE = 20
@@ -76,7 +77,7 @@ def document_detail(request, slug):
             "document": document,
             "redaction": redaction,
             "article_tree": article_tree,
-            "anchors": anchors,
+            "links": {"anchors": anchors, **build_corpus_links(exclude_slug=document.slug)},
             "amendments": amendments,
             "references": references,
             "incoming": incoming,
@@ -194,6 +195,6 @@ def document_print(request, slug):
             "document": document,
             "redaction": redaction,
             "article_tree": article_tree,
-            "anchors": anchors,
+            "links": {"anchors": anchors, **build_corpus_links(exclude_slug=document.slug)},
         },
     )
