@@ -18,6 +18,10 @@
   .status-in_force { background: #2e7d32; }
   .status-repealed { background: #c62828; }
   .status-not_in_force { background: #757575; }
+  .text-status-badge { display: inline-block; padding: 0.1rem 0.5rem;
+    border-radius: 0.4rem; font-size: 0.85em; }
+  .text-status-official { background: #e8f5e9; color: #1b5e20; }
+  .text-status-reconstruction { background: #fff3e0; color: #e65100; }
   .passport dt { font-weight: 600; }
   .link-button { background: none; border: none; padding: 0; color: #1565c0;
     font: inherit; font-size: 0.9em; cursor: pointer; text-decoration: underline; }
@@ -51,6 +55,14 @@
       </ul>
     </nav>
     {% block content %}{% endblock %}
+    <footer>
+      <small>
+        Lawiot — справочный навигатор по открытым правовым данным.
+        Не является источником официального опубликования и не заменяет
+        юридическую консультацию. Официальный источник:
+        <a href="http://pravo.gov.ru" rel="noopener" target="_blank">pravo.gov.ru</a>.
+      </small>
+    </footer>
   </main>
 </body>
 </html>

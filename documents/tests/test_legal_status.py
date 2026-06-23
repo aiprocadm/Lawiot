@@ -3,6 +3,8 @@ import pytest
 from documents.models import Document, Redaction
 from documents.tests.factories import make_document, make_redaction
 
+DISCLAIMER_MARK = "официального опубликования"
+
 
 @pytest.mark.django_db
 def test_new_document_defaults_to_federal_official():
@@ -30,3 +32,13 @@ def test_ingested_draft_marked_official():
     parsed = parse_text("Статья 1. Право на труд.", "code")
     red = create_draft_from_parsed(doc, parsed, redaction_date=date(2022, 1, 1))
     assert red.text_status == Redaction.TextStatus.OFFICIAL
+
+
+@pytest.mark.django_db
+def test_disclaimer_in_footer_on_pages(client, django_user_model):
+    user = django_user_model.objects.create_user("r-foot", password="x")
+    client.force_login(user)
+    make_document(slug="d-foot")
+    # список актов и страница поиска — обе наследуют base.html
+    assert DISCLAIMER_MARK in client.get("/").content.decode()
+    assert DISCLAIMER_MARK in client.get("/search/").content.decode()
