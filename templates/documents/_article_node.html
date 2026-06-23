@@ -2,6 +2,19 @@
 <section id="{{ node.anchor }}">
   <h{{ level }}>{{ node.get_kind_display }}{% if node.number %} {{ node.number }}.{% endif %}{% if node.title %} {{ node.title }}{% endif %}</h{{ level }}>
   {% if node.text %}{{ node.text|linkify_refs:links }}{% endif %}
+  {% if show_ai and node.kind == "article" and node.text %}
+  <p class="article-ai-action">
+    <button type="button" class="link-button"
+            hx-get="{% url 'article_explain' document.slug node.anchor %}"
+            hx-target="#explain-{{ node.anchor }}"
+            hx-swap="innerHTML"
+            hx-indicator="#explain-loading-{{ node.anchor }}">
+      Разъяснить простыми словами (AI)
+    </button>
+    <span id="explain-loading-{{ node.anchor }}" class="htmx-indicator"><small>…</small></span>
+  </p>
+  <div id="explain-{{ node.anchor }}" aria-live="polite"></div>
+  {% endif %}
   {% if level < 6 %}{% with next_level=level|add:1 %}{% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child level=next_level %}{% endfor %}{% endwith %}{% else %}{% for child in node.child_nodes %}{% include "documents/_article_node.html" with node=child level=level %}{% endfor %}{% endif %}
 </section>
 {% endwith %}

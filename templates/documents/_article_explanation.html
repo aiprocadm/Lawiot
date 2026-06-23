@@ -1,0 +1,8 @@
+{% if explanation.mode == "explained" %}
+<aside class="article-ai">
+  <p><strong>Простыми словами (AI):</strong> {{ explanation.text|linebreaksbr }}</p>
+  <p><small>Справочная информация на основе текста статьи, не юридическая консультация.</small></p>
+</aside>
+{% else %}
+<p><small>Автоматическое разъяснение сейчас недоступно. Текст статьи выше остаётся в силе.</small></p>
+{% endif %}
