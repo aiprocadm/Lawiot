@@ -28,6 +28,10 @@
     · {{ document.get_status_display }}
     · редакция от {{ redaction.redaction_date|date:"d.m.Y" }}
   </p>
+  <p class="meta">
+    Не является источником официального опубликования и не заменяет юридическую
+    консультацию. Официальный источник: pravo.gov.ru.
+  </p>
   {% for node in article_tree %}{% include "documents/_article_node.html" with node=node level=2 %}{% endfor %}
 </body>
 </html>

@@ -98,3 +98,12 @@ def test_card_no_source_link_when_url_blank(client, django_user_model):
     _published_doc(source_url="")
     html = client.get("/doc/card-act/").content.decode()
     assert ">Официальный первоисточник<" not in html  # ссылка-якорь отсутствует
+
+
+@pytest.mark.django_db
+def test_print_page_has_disclaimer(client, django_user_model):
+    user = django_user_model.objects.create_user("r-print", password="x")
+    client.force_login(user)
+    _published_doc()
+    html = client.get("/doc/card-act/print/").content.decode()
+    assert DISCLAIMER_MARK in html
