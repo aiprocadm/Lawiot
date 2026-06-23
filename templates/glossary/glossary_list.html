@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Глоссарий — Lawiot{% endblock %}
+{% block content %}
+<h1>Глоссарий терминов трудового права</h1>
+<p><small>Определения вводят кураторы со ссылкой на статью акта. Справочная информация, не юридическая консультация.</small></p>
+
+<form method="get">
+  <input type="search" name="q" value="{{ query }}" placeholder="Поиск термина" aria-label="Поиск термина">
+  <button type="submit">Найти</button>
+</form>
+
+<p><small>Всего: {{ page_obj.paginator.count }}</small></p>
+
+<dl>
+{% for t in page_obj %}
+  <dt><strong id="term-{{ t.pk }}">{{ t.term }}</strong></dt>
+  <dd>
+    {% if t.definition %}{{ t.definition|linebreaksbr }}{% endif %}
+    {% if t.document %}
+    <div><small>Определён в акте:
+      <a href="{% url 'document_detail' t.document.slug %}">{{ t.document.reference_label|truncatechars:80 }}</a>{% if t.article_number %}, ст. {{ t.article_number }}{% endif %}
+    </small></div>
+    {% endif %}
+  </dd>
+{% empty %}
+  <p>{% if query %}По запросу ничего не найдено.{% else %}Глоссарий пока пуст — термины добавляются кураторами.{% endif %}</p>
+{% endfor %}
+</dl>
+
+{% if page_obj.has_other_pages %}
+<nav>
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">← Назад</a>{% endif %}
+  <span>Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}">Вперёд →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

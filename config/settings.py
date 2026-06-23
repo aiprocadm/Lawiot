@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "bookmarks",
     "history",
     "notes",
+    "glossary",
 ]
 
 MIDDLEWARE = [
