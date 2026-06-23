@@ -2,12 +2,18 @@
 {% block title %}Ассистент — Lawiot{% endblock %}
 {% block content %}
 <h1>Ассистент по трудовому праву</h1>
+{% if document %}
+<p><small>Вопрос по акту: <strong>{{ document.title|truncatechars:80 }}</strong> ·
+  <a href="{% url 'assistant' %}">по всему корпусу</a></small></p>
+{% else %}
 <p><small>Задайте вопрос на естественном языке — ответ строится по статьям корпуса со ссылками.</small></p>
+{% endif %}
 
 <form method="get"
       hx-get="{% url 'assistant' %}"
       hx-target="#assistant-answer"
       hx-push-url="true">
+  {% if document %}<input type="hidden" name="doc" value="{{ document.slug }}">{% endif %}
   <input type="search" name="q" value="{{ question }}" placeholder="Например: положена ли компенсация за неиспользованный отпуск при увольнении?" aria-label="Вопрос">
   <button type="submit">Спросить</button>
 </form>
