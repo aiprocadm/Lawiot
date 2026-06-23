@@ -84,6 +84,10 @@ def create_draft_from_parsed(document, parsed, *, raw_source=None, redaction_dat
             redaction = Redaction(document=document, redaction_date=redaction_date)
         redaction.full_text = parsed.full_text
         redaction.review_status = Redaction.ReviewStatus.DRAFT
+        # Источник приёма — официальный сводный раздел ИПС (Р1.1): текст официальный.
+        # Явно (не полагаясь на дефолт поля) — оба пути (ingest_target/import_manual)
+        # идут через эту функцию.
+        redaction.text_status = Redaction.TextStatus.OFFICIAL
         redaction.is_current = False
         redaction.ingested_at = timezone.now()
         redaction.parser_version = PARSER_VERSION
