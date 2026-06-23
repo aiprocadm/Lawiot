@@ -12,6 +12,8 @@ SEED_ACTS = [
         "official_number": "197-ФЗ",
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
         "sign_date": datetime.date(2001, 12, 30),  # подписан Президентом 30.12.2001
         "official_pub_date": datetime.date(2001, 12, 31),  # «Российская газета» №256
         # ИПС «Законодательство России» (pravo.gov.ru). Эндпоинт doc_itself отдаёт
@@ -36,6 +38,8 @@ SEED_ACTS = [
         "official_number": "426-ФЗ",
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
         "sign_date": datetime.date(2013, 12, 28),  # подписан 28.12.2013
         "official_pub_date": datetime.date(2013, 12, 30),  # «Российская газета» №295
         "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102170672&print=1",
@@ -51,6 +55,8 @@ SEED_ACTS = [
         "official_number": "10-ФЗ",
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
         "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102039060&print=1",
         # Приёмка парсера пройдена на живой фикстуре (6 глав РИМСКИМИ цифрами, ≥33
         # статьи, без «сирот»): см. test_real_prof10_ingest_creates_clean_draft.
@@ -65,6 +71,8 @@ SEED_ACTS = [
         "official_number": "82-ФЗ",
         "issuing_body": "Федеральное Собрание Российской Федерации",
         "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
         "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102066375&print=1",
         # Приёмка парсера пройдена на живой фикстуре. ПЛОСКИЙ акт: глав нет, только
         # статьи 1–9 верхнего уровня (см. test_real_mrot82_ingest_creates_clean_draft).

@@ -124,3 +124,11 @@ def test_docx_export_has_disclaimer(client, django_user_model):
     texts = "\n".join(p.text for p in dx.paragraphs)
     assert DISCLAIMER_MARK in texts
     assert "pravo.gov.ru" in texts
+
+
+def test_seed_acts_declare_federal_official():
+    from documents.seed.labor_law import SEED_ACTS
+
+    assert SEED_ACTS, "ожидается непустой список"
+    assert all(a["level"] == "federal" for a in SEED_ACTS)
+    assert all(a["source_status"] == "official" for a in SEED_ACTS)
