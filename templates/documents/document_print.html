@@ -19,6 +19,7 @@
 <body>
   <div class="toolbar">
     <button onclick="window.print()">Печать</button>
+    <a href="{% url 'document_export_docx' document.slug %}">Скачать .docx</a>
     <a href="{% url 'document_detail' document.slug %}">← к документу</a>
   </div>
   <h1>{{ document.title }}</h1>

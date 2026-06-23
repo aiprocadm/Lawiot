@@ -25,6 +25,8 @@ INSTALLED_APPS = [
     "search",
     "ingestion",
     "assistant",
+    "practice",
+    "bookmarks",
     "history",
 ]
 

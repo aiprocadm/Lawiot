@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Избранное — Lawiot{% endblock %}
+{% block content %}
+<h1>Избранное</h1>
+<ul>
+  {% for b in bookmarks %}
+  <li>
+    <a href="{% url 'document_detail' b.document.slug %}">{{ b.document.title }}</a>
+    <form method="post" action="{% url 'bookmark_toggle' b.document.slug %}" style="display:inline">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'bookmark_list' %}">
+      <button type="submit" class="secondary">Убрать</button>
+    </form>
+  </li>
+  {% empty %}
+  <li>В избранном пока пусто. Добавляйте акты из списка ★.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

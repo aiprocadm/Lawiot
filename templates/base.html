@@ -29,6 +29,8 @@
         {% if user.is_authenticated %}
         <li><a href="{% url 'search' %}">Поиск</a></li>
         <li><a href="{% url 'assistant' %}">Ассистент</a></li>
+        <li><a href="{% url 'practice_list' %}">Судебная практика</a></li>
+        <li><a href="{% url 'bookmark_list' %}">Избранное</a></li>
         <li><a href="{% url 'history_list' %}">История</a></li>
         <li><a href="{% url 'changes_feed' %}">Изменения</a></li>
         {% if user.is_staff %}<li><a href="{% url 'admin:index' %}">Курирование</a></li>{% endif %}
