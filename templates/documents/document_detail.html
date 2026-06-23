@@ -8,6 +8,9 @@
     <p>
       <a href="{% url 'document_print' document.slug %}">Версия для печати</a> ·
       <a href="{% url 'assistant' %}?doc={{ document.slug }}">Спросить ассистента об этом акте</a>
+      {% if document.source_url %} ·
+      <a href="{{ document.source_url }}" rel="noopener" target="_blank">Официальный первоисточник</a>
+      {% endif %}
     </p>
     <dl class="passport">
       <dt>Вид документа</dt><dd>{{ document.get_doc_type_display }}</dd>
@@ -17,7 +20,11 @@
       <dt>Дата опубликования</dt><dd>{{ document.official_pub_date|date:"d.m.Y"|default:"—" }}</dd>
       <dt>Статус</dt>
       <dd><span class="status-badge status-{{ document.status }}">{{ document.get_status_display }}</span></dd>
+      <dt>Уровень</dt><dd>{{ document.get_level_display }}</dd>
+      <dt>Источник</dt><dd>{{ document.get_source_status_display }}</dd>
       <dt>Действующая редакция</dt><dd>{{ redaction.redaction_date|date:"d.m.Y" }}</dd>
+      <dt>Происхождение текста</dt>
+      <dd><span class="text-status-badge text-status-{{ redaction.text_status }}">{{ redaction.get_text_status_display }}</span></dd>
       <dt>Структура</dt>
       <dd>
         {# « · » ставится ПЕРЕД элементом, только если что-то уже отрендерено выше — #}
