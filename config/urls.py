@@ -27,4 +27,9 @@ urlpatterns = [
         views.redaction_diff,
         name="redaction_diff",
     ),
+    path(
+        "doc/<slug:slug>/diff/<int:from_pk>/explain/",
+        views.redaction_diff_explain,
+        name="redaction_diff_explain",
+    ),
 ]

@@ -178,6 +178,50 @@ def redaction_diff(request, slug, from_pk):
 
 
 @login_required
+def redaction_diff_explain(request, slug, from_pk):
+    """AI-объяснение изменений «прошлая → текущая» (htmx-партиал, ленивая загрузка).
+
+    По умолчанию ничего не стоит: вызывается только по кнопке на странице diff.
+    Без ключа/при ошибке API — режим `unavailable`, сам diff остаётся виден.
+    """
+    from assistant.diff_explain import explain_diff
+
+    document = get_object_or_404(Document, slug=slug)
+    current = document.redactions.filter(
+        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
+    ).first()
+    if current is None:
+        raise Http404("Нет опубликованной редакции")
+    older = get_object_or_404(
+        Redaction,
+        pk=from_pk,
+        document=document,
+        review_status=Redaction.ReviewStatus.PUBLISHED,
+    )
+    if older.pk == current.pk:
+        raise Http404("Редакция уже текущая — сравнивать не с чем")
+
+    older_by_num = {a.number: a for a in older.articles.all()}
+    newer_by_num = {a.number: a for a in current.articles.all()}
+    changes = [
+        {
+            "number": d.number,
+            "status": d.status,
+            "old_text": getattr(older_by_num.get(d.number), "text", "") or "",
+            "new_text": getattr(newer_by_num.get(d.number), "text", "") or "",
+        }
+        for d in diff_articles(list(older.articles.all()), list(current.articles.all()))
+        if d.status != "same"
+    ]
+    explanation = explain_diff(changes)
+    return render(
+        request,
+        "documents/_diff_explanation.html",
+        {"explanation": explanation},
+    )
+
+
+@login_required
 def document_print(request, slug):
     """Версия для печати: чистая standalone-страница с полным текстом акта."""
     document = get_object_or_404(Document, slug=slug)
