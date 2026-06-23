@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Судебная практика — Lawiot{% endblock %}
+{% block content %}
+<h1>Судебная практика</h1>
+{% if document %}
+<p><small>По акту: <strong>{{ document.title|truncatechars:80 }}</strong> ·
+  <a href="{% url 'practice_list' %}">вся практика</a></small></p>
+{% endif %}
+<p><small>Всего: {{ page_obj.paginator.count }}</small></p>
+
+{% for d in page_obj %}
+<article>
+  <h3>{{ d.title }}</h3>
+  <small>{{ d.court }}{% if d.case_number %} · {{ d.case_number }}{% endif %} · {{ d.decision_date|date:"d.m.Y" }}</small>
+  {% if d.summary %}<p>{{ d.summary }}</p>{% endif %}
+  <small>
+    {% if d.document %}Акт: <a href="{% url 'document_detail' d.document.slug %}">{{ d.document.reference_label|truncatechars:80 }}</a>{% if d.article_number %}, ст. {{ d.article_number }}{% endif %} · {% endif %}
+    {% if d.source_url %}<a href="{{ d.source_url }}" rel="noopener">источник</a>{% endif %}
+  </small>
+</article>
+{% empty %}
+<p>Судебной практики пока нет.</p>
+{% endfor %}
+
+{% if page_obj.has_other_pages %}
+<nav>
+  {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if document %}&doc={{ document.slug }}{% endif %}">← Назад</a>{% endif %}
+  <span>Стр. {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if document %}&doc={{ document.slug }}{% endif %}">Вперёд →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

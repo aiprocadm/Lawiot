@@ -53,15 +53,16 @@ def _default_client():
     return anthropic.Anthropic(api_key=key)
 
 
-def answer_question(question, *, client=None):
+def answer_question(question, *, document=None, client=None):
     """Ответ ассистента на вопрос пользователя.
 
-    Всегда сначала извлекает статьи. Синтезирует ответ только при наличии
+    Если задан `document` — извлечение ограничено этим актом («спросить об этом
+    акте»). Всегда сначала извлекает статьи. Синтезирует ответ только при наличии
     клиента (ключ настроен или клиент передан явно); иначе — retrieval_only.
     Любая ошибка API или refusal → откат в retrieval_only (статьи полезны сами).
     """
     question = (question or "").strip()
-    articles = retrieve(question)
+    articles = retrieve(question, document=document)
     if not articles:
         return AssistantAnswer(question=question, articles=[], mode=MODE_NO_RESULTS)
 
