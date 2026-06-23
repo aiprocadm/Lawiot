@@ -20,12 +20,33 @@ class Document(models.Model):
         REPEALED = "repealed", "Утратил силу"
         NOT_IN_FORCE = "not_in_force", "Не вступил в силу"
 
+    class SourceStatus(models.TextChoices):
+        OFFICIAL = "official", "Официальный источник"
+        UNOFFICIAL = "unofficial", "Неофициальный источник"
+
+    class Level(models.TextChoices):
+        FEDERAL = "federal", "Федеральный"
+        REGIONAL = "regional", "Региональный"
+        MUNICIPAL = "municipal", "Муниципальный"
+
     doc_type = models.CharField(max_length=20, choices=DocType.choices)
     title = models.TextField()
     official_number = models.CharField(max_length=100, blank=True)
     sign_date = models.DateField(null=True, blank=True)
     issuing_body = models.CharField(max_length=255, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.IN_FORCE)
+    source_status = models.CharField(
+        max_length=20, choices=SourceStatus.choices, default=SourceStatus.OFFICIAL
+    )
+    level = models.CharField(
+        max_length=20,
+        choices=Level.choices,
+        default=Level.FEDERAL,
+        help_text="Уровень нормативки (Р2). Региональный/муниципальный — на будущее.",
+    )
+    region_code = models.CharField(
+        max_length=10, blank=True, help_text="Код субъекта РФ; пусто на федеральном уровне."
+    )
     source_url = models.URLField(blank=True)
     auto_ingest = models.BooleanField(
         default=False,
@@ -61,11 +82,24 @@ class Redaction(models.Model):
         DRAFT = "draft", "Черновик"
         PUBLISHED = "published", "Опубликовано"
 
+    class TextStatus(models.TextChoices):
+        OFFICIAL = "official", "Официальная редакция"
+        RECONSTRUCTION = "reconstruction", "Автоматическая реконструкция"
+
     document = models.ForeignKey(Document, related_name="redactions", on_delete=models.CASCADE)
     redaction_date = models.DateField(help_text="Действует с")
     full_text = models.TextField(blank=True)
     review_status = models.CharField(
         max_length=20, choices=ReviewStatus.choices, default=ReviewStatus.DRAFT
+    )
+    text_status = models.CharField(
+        max_length=20,
+        choices=TextStatus.choices,
+        default=TextStatus.OFFICIAL,
+        help_text=(
+            "Происхождение текста (Р1): official — из официального сводного раздела ИПС; "
+            "reconstruction — собрано движком/куратором. Ортогонально review_status."
+        ),
     )
     is_current = models.BooleanField(default=False)
     published_at = models.DateTimeField(
