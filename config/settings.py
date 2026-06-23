@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "practice",
     "bookmarks",
     "history",
+    "notes",
 ]
 
 MIDDLEWARE = [

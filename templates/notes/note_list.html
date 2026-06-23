@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Заметки — Lawiot{% endblock %}
+{% block content %}
+<h1>Мои заметки</h1>
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Добавить заметку</button>
+</form>
+
+<hr>
+<ul>
+  {% for n in notes %}
+  <li>
+    <a href="{% url 'document_detail' n.document.slug %}">{{ n.document.title|truncatechars:70 }}</a>{% if n.article_number %}, ст. {{ n.article_number }}{% endif %}
+    <small>· {{ n.updated_at|date:"d.m.Y H:i" }}</small>
+    <p>{{ n.text|linebreaksbr }}</p>
+    <form method="post" action="{% url 'note_delete' n.pk %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="secondary outline">Удалить</button>
+    </form>
+  </li>
+  {% empty %}
+  <li>Заметок пока нет.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

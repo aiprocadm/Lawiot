@@ -15,6 +15,7 @@ urlpatterns = [
     path("practice/", include("practice.urls")),
     path("bookmarks/", include("bookmarks.urls")),
     path("history/", include("history.urls")),
+    path("notes/", include("notes.urls")),
     path("changes/", views.changes_feed, name="changes_feed"),
     path("changes/feed/", login_required(ChangesFeed()), name="changes_feed_atom"),
     path("doc/<slug:slug>/", views.document_detail, name="document_detail"),
