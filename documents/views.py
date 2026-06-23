@@ -23,12 +23,20 @@ def document_list(request):
     documents = Document.objects.filter(Exists(current)).order_by("title")
     page_obj = Paginator(documents, PAGE_SIZE).get_page(request.GET.get("page"))
 
+    # Слаги актов в избранном пользователя — для ★-переключателя в списке.
+    # Ленивый импорт: documents не зависит от bookmarks на уровне модуля.
+    from bookmarks.models import Bookmark
+
+    bookmarked = set(
+        Bookmark.objects.filter(user=request.user).values_list("document__slug", flat=True)
+    )
+
     template = (
         "documents/_list_items.html"
         if request.headers.get("HX-Request")
         else "documents/document_list.html"
     )
-    return render(request, template, {"page_obj": page_obj})
+    return render(request, template, {"page_obj": page_obj, "bookmarked": bookmarked})
 
 
 @login_required
