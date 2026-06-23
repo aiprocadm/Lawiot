@@ -53,13 +53,15 @@ def _default_client():
     return anthropic.Anthropic(api_key=key)
 
 
-def answer_question(question, *, document=None, client=None):
+def answer_question(question, *, document=None, history=None, client=None):
     """Ответ ассистента на вопрос пользователя.
 
     Если задан `document` — извлечение ограничено этим актом («спросить об этом
-    акте»). Всегда сначала извлекает статьи. Синтезирует ответ только при наличии
-    клиента (ключ настроен или клиент передан явно); иначе — retrieval_only.
-    Любая ошибка API или refusal → откат в retrieval_only (статьи полезны сами).
+    акте»). `history` — список прошлых ходов диалога ({"role","content"}); даёт
+    модели контекст для уточняющих вопросов (многоходовой диалог). Извлечение —
+    всегда по ТЕКУЩЕМУ вопросу; проверка цитат — по текущим статьям. Синтезирует
+    ответ только при наличии клиента; иначе — retrieval_only. Ошибка API/refusal
+    → откат в retrieval_only.
     """
     question = (question or "").strip()
     articles = retrieve(question, document=document)
@@ -71,6 +73,11 @@ def answer_question(question, *, document=None, client=None):
     if client is None:
         return AssistantAnswer(question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY)
 
+    messages = [
+        {"role": turn["role"], "content": turn["content"]} for turn in (history or [])
+    ]
+    messages.append({"role": "user", "content": build_user_content(question, articles)})
+
     try:
         resp = client.messages.create(
             model=MODEL,
@@ -78,7 +85,7 @@ def answer_question(question, *, document=None, client=None):
             thinking={"type": "adaptive"},
             output_config={"effort": EFFORT},
             system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": build_user_content(question, articles)}],
+            messages=messages,
         )
     except Exception as exc:  # noqa: BLE001 — любая ошибка API → деградация, не падение
         logger.warning("assistant synthesis failed: %s", exc)
