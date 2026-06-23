@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "search",
     "ingestion",
     "assistant",
+    "history",
 ]
 
 MIDDLEWARE = [
@@ -36,6 +37,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "history.middleware.RecordViewMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
