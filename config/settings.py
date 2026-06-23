@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "assistant",
     "practice",
     "bookmarks",
+    "history",
     "notes",
 ]
 
@@ -39,6 +40,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "history.middleware.RecordViewMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
