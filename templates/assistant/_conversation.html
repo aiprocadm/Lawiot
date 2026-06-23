@@ -1,0 +1,28 @@
+{% for turn in conversation %}
+<article>
+  <p><strong>Вопрос:</strong> {{ turn.q }}</p>
+  {% if turn.mode == "no_results" %}
+    <p>В доступном корпусе не нашлось статей по этому вопросу.</p>
+  {% else %}
+    {% if turn.a %}
+      <p>{{ turn.a|linebreaksbr }}</p>
+      {% if turn.unverified %}
+      <p><small>⚠ Упомянуты статьи вне найденного набора ({{ turn.unverified|join:", " }}) — проверьте по первоисточнику.</small></p>
+      {% endif %}
+    {% endif %}
+    {% if turn.articles %}
+    <details>
+      <summary>Статьи-основания ({{ turn.articles|length }})</summary>
+      <ul>
+        {% for a in turn.articles %}<li><a href="{{ a.url }}">{{ a.title }} — {{ a.label }}</a></li>{% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  {% endif %}
+</article>
+{% empty %}
+<p><small>Задайте вопрос — диалог сохраняется в рамках сессии (можно задавать уточняющие вопросы).</small></p>
+{% endfor %}
+{% if conversation %}
+<footer><small>Справочная информация на основе корпуса, не юридическая консультация.</small></footer>
+{% endif %}

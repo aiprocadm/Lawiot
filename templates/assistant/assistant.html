@@ -9,16 +9,16 @@
 <p><small>Задайте вопрос на естественном языке — ответ строится по статьям корпуса со ссылками.</small></p>
 {% endif %}
 
+<div id="assistant-conv" aria-live="polite">
+  {% include "assistant/_conversation.html" %}
+</div>
+
 <form method="get"
       hx-get="{% url 'assistant' %}"
-      hx-target="#assistant-answer"
-      hx-push-url="true">
+      hx-target="#assistant-conv">
   {% if document %}<input type="hidden" name="doc" value="{{ document.slug }}">{% endif %}
-  <input type="search" name="q" value="{{ question }}" placeholder="Например: положена ли компенсация за неиспользованный отпуск при увольнении?" aria-label="Вопрос">
+  <input type="search" name="q" placeholder="Например: положена ли компенсация за неиспользованный отпуск при увольнении?" aria-label="Вопрос">
   <button type="submit">Спросить</button>
 </form>
-
-<div id="assistant-answer" aria-live="polite">
-  {% include "assistant/_answer.html" %}
-</div>
+<p><small><a href="{% url 'assistant' %}?reset=1{% if document %}&doc={{ document.slug }}{% endif %}">Новый диалог</a></small></p>
 {% endblock %}
