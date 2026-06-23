@@ -107,3 +107,20 @@ def test_print_page_has_disclaimer(client, django_user_model):
     _published_doc()
     html = client.get("/doc/card-act/print/").content.decode()
     assert DISCLAIMER_MARK in html
+
+
+@pytest.mark.django_db
+def test_docx_export_has_disclaimer(client, django_user_model):
+    import io
+
+    from docx import Document as Dx
+
+    user = django_user_model.objects.create_user("r-docx", password="x")
+    client.force_login(user)
+    _published_doc(source_url="http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=1&print=1")
+    resp = client.get("/doc/card-act/export.docx")
+    assert resp.status_code == 200
+    dx = Dx(io.BytesIO(resp.content))
+    texts = "\n".join(p.text for p in dx.paragraphs)
+    assert DISCLAIMER_MARK in texts
+    assert "pravo.gov.ru" in texts
