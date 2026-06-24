@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 
-from ingestion.publication import FEDERAL_MINTRUD_ID, iter_documents
+from ingestion.publication import ALLOWED_PAGE_SIZES, FEDERAL_MINTRUD_ID, PAGE_SIZE, iter_documents
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures_raw" / "publication_mintrud_page1.json"
 
@@ -37,3 +37,24 @@ def test_iter_documents_respects_max_pages():
     calls = []
     list(iter_documents(FEDERAL_MINTRUD_ID, client=_client(calls), max_pages=1))
     assert calls == [1]  # дальше первой страницы не пошёл
+
+
+def test_iter_documents_sends_server_accepted_page_size():
+    # Регрессия на дрейф контракта портала (2026-06-24): портал отвергает PageSize не
+    # из белого списка 400-ответом. Мок имитирует это — тест падает, если PAGE_SIZE
+    # вернут к отвергаемому значению (как прежний 50).
+    assert PAGE_SIZE in ALLOWED_PAGE_SIZES
+
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        size = int(request.url.params.get("PageSize", "0"))
+        seen.append(size)
+        if size not in ALLOWED_PAGE_SIZES:
+            return httpx.Response(
+                400, json={"errors": {"PageSize": [f"The value '{size}' is invalid."]}}
+            )
+        return httpx.Response(200, json=_payload(int(request.url.params.get("Index", "1"))))
+
+    list(iter_documents(FEDERAL_MINTRUD_ID, client=httpx.Client(transport=httpx.MockTransport(handler))))
+    assert seen and all(s in ALLOWED_PAGE_SIZES for s in seen)
