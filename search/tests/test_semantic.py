@@ -131,9 +131,15 @@ def test_embed_passages_applies_passage_prefix():
     assert seen == ["passage: текст статьи"]
 
 
-def test_embed_query_degrades_to_none_without_backend():
-    # Нет пакета sentence-transformers в venv → реальный бэкенд бросит → None.
+def test_embed_query_degrades_to_none_without_backend(monkeypatch):
+    # Сбой реального бэкенда (нет пакета/модели) → embed_query глотает → None.
+    # Мокаем явно, чтобы тест не зависел от наличия sentence-transformers в env.
     embeddings.reset_backend()
+
+    def broken(texts):
+        raise ImportError("No module named 'sentence_transformers'")
+
+    monkeypatch.setattr(embeddings, "_real_backend", broken)
     assert embeddings.embed_query("отпуск") is None
 
 

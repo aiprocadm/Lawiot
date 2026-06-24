@@ -238,6 +238,9 @@ def _semantic_supplement(query_text, fts_results, **filters):
         )
         .exclude(embedding=None)
         .select_related("redaction__document")
+        # Тяжёлые колонки не выкачиваем (как в FTS-фазе): вектор использован для
+        # ORDER BY в БД, tsvector не нужен; text оставляем — из него сниппет.
+        .defer("search_vector", "embedding", "redaction__full_text", "redaction__search_vector")
     )
     qs = _apply_doc_filters(qs, "redaction__document__", **filters)
     qs = qs.annotate(distance=CosineDistance("embedding", vec)).order_by("distance")[
