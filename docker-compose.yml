@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 = PostgreSQL 16 + расширение vector (AI-срез 4,
+    # семантический поиск). Та же мажорная версия PG и тот же том lawiot_pgdata —
+    # данные сохраняются; `docker compose up -d db` пересоздаёт лишь контейнер.
+    image: pgvector/pgvector:pg16
     container_name: lawiot-db
     environment:
       POSTGRES_DB: lawiot
