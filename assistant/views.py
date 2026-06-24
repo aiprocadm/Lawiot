@@ -84,14 +84,18 @@ def assistant_stream(request):
 
     def body():
         acc = []
-        for chunk in deltas:
-            acc.append(chunk)
-            yield chunk
-        answer = finalize_answer(question, articles, "".join(acc))
-        convo = request.session.get(SESSION_KEY, [])
-        convo = (convo + [_turn_from_answer(question, answer)])[-MAX_TURNS:]
-        request.session[SESSION_KEY] = convo
-        request.session.save()
+        try:
+            for chunk in deltas:
+                acc.append(chunk)
+                yield chunk
+        finally:
+            # finally — чтобы ход персистнулся даже при дисконнекте клиента
+            # (WSGI бросает GeneratorExit в yield → код после цикла пропускается).
+            answer = finalize_answer(question, articles, "".join(acc))
+            convo = request.session.get(SESSION_KEY, [])
+            convo = (convo + [_turn_from_answer(question, answer)])[-MAX_TURNS:]
+            request.session[SESSION_KEY] = convo
+            request.session.save()
 
     response = StreamingHttpResponse(body(), content_type="text/plain; charset=utf-8")
     response["X-Accel-Buffering"] = "no"

@@ -179,6 +179,26 @@ def test_assistant_stream_streams_deltas_and_persists_turn(auth_client, publishe
 
 
 @pytest.mark.django_db
+def test_assistant_stream_persists_partial_turn_on_disconnect(
+    auth_client, published_doc, monkeypatch
+):
+    """Дисконнект клиента (закрытие генератора) всё равно персистит ход."""
+    _, client = auth_client
+    monkeypatch.setattr(
+        "assistant.services._default_client",
+        lambda: _FakeStreamClient(deltas=["Да", ", см. ", "Статья 127."]),
+    )
+    resp = client.get(reverse("assistant_stream"), {"q": "отпуск увольнение компенсация"})
+    first = next(resp.streaming_content)  # получили часть ответа...
+    resp._iterator.close()  # ...и «отключились»: GeneratorExit в тело → finally
+
+    assert first == b"\xd0\x94\xd0\xb0"  # "Да" в utf-8
+    convo = client.session[SESSION_KEY]
+    assert len(convo) == 1
+    assert convo[0]["a"] == "Да"  # ровно то, что успело стримнуться
+
+
+@pytest.mark.django_db
 def test_assistant_stream_retrieval_only_persists_without_text(
     auth_client, published_doc, settings
 ):

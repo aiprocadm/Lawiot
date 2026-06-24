@@ -61,6 +61,7 @@
 
     fetch(form.dataset.streamUrl + qs, { headers: { "X-Requested-With": "fetch" } })
       .then(function (resp) {
+        if (!resp.ok) throw new Error("HTTP " + resp.status);  // напр. 302→login
         var reader = resp.body.getReader();
         var dec = new TextDecoder();
         var first = true;
