@@ -4,8 +4,10 @@ from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRa
 from django.db.models import F
 from django.utils.html import escape
 from django.utils.safestring import SafeString, mark_safe
+from pgvector.django import CosineDistance
 
 from documents.models import Article, Document, Redaction
+from search.embeddings import embed_query
 from search.lemmas import build_expanded_tsquery
 
 
@@ -16,6 +18,15 @@ class SearchResult:
     snippet: str
     article_anchor: str | None = None
     article_label: str | None = None
+    # True — документ найден семантически (перефразировка), не лексическим FTS.
+    semantic: bool = False
+
+
+# Сколько ближайших по смыслу статей тянуть и сколько семантических документов
+# максимум добавлять к FTS-результатам.
+_SEMANTIC_FETCH = 30
+_SEMANTIC_MAX = 10
+_SEMANTIC_SNIPPET_CHARS = 200
 
 
 @dataclass
@@ -93,18 +104,16 @@ def search_documents(
 
     query = _build_query(query_text)
 
+    filters = dict(
+        doc_type=doc_type,
+        status=status,
+        issuing_body=issuing_body,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
     def apply_doc_filters(qs, prefix):
-        if doc_type:
-            qs = qs.filter(**{f"{prefix}doc_type": doc_type})
-        if status:
-            qs = qs.filter(**{f"{prefix}status": status})
-        if issuing_body:
-            qs = qs.filter(**{f"{prefix}issuing_body__icontains": issuing_body})
-        if date_from:
-            qs = qs.filter(**{f"{prefix}sign_date__gte": date_from})
-        if date_to:
-            qs = qs.filter(**{f"{prefix}sign_date__lte": date_to})
-        return qs
+        return _apply_doc_filters(qs, prefix, **filters)
 
     # Фаза 1: только хиты и ранги. Тяжёлые колонки (full_text редакции —
     # сотни КБ для кодекса — и tsvector'ы) не выкачиваем: на живых данных
@@ -184,7 +193,80 @@ def search_documents(
                 )
             )
 
-    return sorted(results, key=lambda x: x.rank, reverse=True)
+    fts_results = sorted(results, key=lambda x: x.rank, reverse=True)
+    return _semantic_supplement(query_text, fts_results, **filters)
+
+
+def _apply_doc_filters(qs, prefix, *, doc_type, status, issuing_body, date_from, date_to):
+    if doc_type:
+        qs = qs.filter(**{f"{prefix}doc_type": doc_type})
+    if status:
+        qs = qs.filter(**{f"{prefix}status": status})
+    if issuing_body:
+        qs = qs.filter(**{f"{prefix}issuing_body__icontains": issuing_body})
+    if date_from:
+        qs = qs.filter(**{f"{prefix}sign_date__gte": date_from})
+    if date_to:
+        qs = qs.filter(**{f"{prefix}sign_date__lte": date_to})
+    return qs
+
+
+def _plain_snippet(text) -> SafeString:
+    """Сниппет для семантического хита: обрез текста статьи (без ts_headline —
+    у запроса может не быть общих слов с найденным по смыслу текстом)."""
+    text = (text or "").strip()
+    if len(text) > _SEMANTIC_SNIPPET_CHARS:
+        text = text[:_SEMANTIC_SNIPPET_CHARS].rstrip() + "…"
+    return mark_safe(escape(text))
+
+
+def _semantic_supplement(query_text, fts_results, **filters):
+    """Аддитивно дополнить FTS-результаты документами, найденными по смыслу.
+
+    FTS-порядок сохраняется; добавляются ТОЛЬКО документы, которых нет в
+    FTS-результатах (перефразировки, которые лексический поиск пропустил).
+    Без бэкенда эмбеддингов / при ошибке — возвращает FTS как есть.
+    """
+    vec = embed_query(query_text)
+    if vec is None:
+        return fts_results
+
+    qs = (
+        Article.objects.filter(
+            redaction__is_current=True,
+            redaction__review_status=Redaction.ReviewStatus.PUBLISHED,
+        )
+        .exclude(embedding=None)
+        .select_related("redaction__document")
+        # Тяжёлые колонки не выкачиваем (как в FTS-фазе): вектор использован для
+        # ORDER BY в БД, tsvector не нужен; text оставляем — из него сниппет.
+        .defer("search_vector", "embedding", "redaction__full_text", "redaction__search_vector")
+    )
+    qs = _apply_doc_filters(qs, "redaction__document__", **filters)
+    qs = qs.annotate(distance=CosineDistance("embedding", vec)).order_by("distance")[
+        :_SEMANTIC_FETCH
+    ]
+
+    seen = {r.document.id for r in fts_results}
+    extras = []
+    for a in qs:
+        doc = a.redaction.document
+        if doc.id in seen:
+            continue
+        seen.add(doc.id)  # один лучший (ближайший) хит на документ
+        extras.append(
+            SearchResult(
+                document=doc,
+                rank=0.0,
+                snippet=_plain_snippet(a.text),
+                article_anchor=a.anchor,
+                article_label=f"{a.get_kind_display()} {a.number}",
+                semantic=True,
+            )
+        )
+        if len(extras) >= _SEMANTIC_MAX:
+            break
+    return fts_results + extras
 
 
 def search_in_document(document, query_text, *, limit=50):

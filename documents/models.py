@@ -5,6 +5,10 @@ from django.db import models, transaction
 from django.db.models import F, Q, Value
 from django.utils import timezone
 from django.utils.text import slugify
+from pgvector.django import HnswIndex, VectorField
+
+# Размерность эмбеддингов = intfloat/multilingual-e5-small (см. search.embeddings).
+EMBEDDING_DIM = 384
 
 
 class Document(models.Model):
@@ -187,6 +191,9 @@ class Article(models.Model):
     )
     anchor = models.SlugField(max_length=100, blank=True)
     search_vector = SearchVectorField(null=True, editable=False)
+    # Семантический эмбеддинг (AI-срез 4). null до бэкфилла `embed_articles`;
+    # генерируется вне request-пути. См. search.embeddings / search.services.
+    embedding = VectorField(dimensions=EMBEDDING_DIM, null=True, blank=True, editable=False)
 
     _ANCHOR_PREFIX = {
         "section": "razdel",
@@ -198,7 +205,16 @@ class Article(models.Model):
 
     class Meta:
         ordering = ["order"]
-        indexes = [GinIndex(fields=["search_vector"], name="article_search_gin")]
+        indexes = [
+            GinIndex(fields=["search_vector"], name="article_search_gin"),
+            HnswIndex(
+                name="article_embedding_hnsw",
+                fields=["embedding"],
+                m=16,
+                ef_construction=64,
+                opclasses=["vector_cosine_ops"],
+            ),
+        ]
         constraints = [
             # Cheap, DB-enforced guard against the one-row cycle (A is its own
             # parent). Longer cycles (A→B→A) span multiple rows and are caught

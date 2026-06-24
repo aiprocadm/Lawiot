@@ -8,6 +8,10 @@ django-q2>=1.7
 pymorphy3>=2.0
 pymorphy3-dicts-ru
 anthropic>=0.40
+pgvector>=0.3
+# Локальная модель эмбеддингов для семантического поиска (AI-срез 4).
+# Тяжёлая (тянет torch); без неё семантика грациозно деградирует в FTS.
+sentence-transformers>=3.0
 croniter>=2.0
 gunicorn>=22.0
 whitenoise>=6.6
