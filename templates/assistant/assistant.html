@@ -13,12 +13,76 @@
   {% include "assistant/_conversation.html" %}
 </div>
 
-<form method="get"
-      hx-get="{% url 'assistant' %}"
-      hx-target="#assistant-conv">
+{% comment %}
+  Без JS форма делает обычный GET → assistant_view (блокирующий полный ответ).
+  С JS (ниже) submit перехватывается, ответ стримится через assistant_stream;
+  по завершении лента перерисовывается через htmx (ссылки на статьи + бейджи).
+{% endcomment %}
+<form id="assistant-form" method="get" action="{% url 'assistant' %}"
+      data-stream-url="{% url 'assistant_stream' %}"
+      data-conv-url="{% url 'assistant' %}"
+      data-doc="{% if document %}{{ document.slug }}{% endif %}">
   {% if document %}<input type="hidden" name="doc" value="{{ document.slug }}">{% endif %}
   <input type="search" name="q" placeholder="Например: положена ли компенсация за неиспользованный отпуск при увольнении?" aria-label="Вопрос">
   <button type="submit">Спросить</button>
 </form>
 <p><small><a href="{% url 'assistant' %}?reset=1{% if document %}&doc={{ document.slug }}{% endif %}">Новый диалог</a></small></p>
+
+<script>
+(function () {
+  var form = document.getElementById("assistant-form");
+  // Нужны fetch+ReadableStream И htmx (для финального swap). Иначе — fallback GET.
+  if (!form || !window.fetch || !window.ReadableStream || !window.htmx) return;
+  var conv = document.getElementById("assistant-conv");
+
+  form.addEventListener("submit", function (e) {
+    var input = form.querySelector('input[name="q"]');
+    var q = (input.value || "").trim();
+    if (!q) return;  // пусто — форма ничего не делает
+    e.preventDefault();
+
+    var doc = form.dataset.doc || "";
+    var qs = "?q=" + encodeURIComponent(q) + (doc ? "&doc=" + encodeURIComponent(doc) : "");
+
+    // Скелет хода: эхо вопроса + пустой контейнер ответа (только textContent — без HTML).
+    var art = document.createElement("article");
+    var qp = document.createElement("p");
+    var strong = document.createElement("strong");
+    strong.textContent = "Вопрос: ";
+    qp.appendChild(strong);
+    qp.appendChild(document.createTextNode(q));
+    var ans = document.createElement("p");
+    ans.className = "stream-answer";
+    ans.textContent = "…";
+    art.appendChild(qp);
+    art.appendChild(ans);
+    conv.appendChild(art);
+    input.value = "";
+
+    fetch(form.dataset.streamUrl + qs, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (resp) {
+        var reader = resp.body.getReader();
+        var dec = new TextDecoder();
+        var first = true;
+        function pump() {
+          return reader.read().then(function (r) {
+            if (r.done) return;
+            if (first) { ans.textContent = ""; first = false; }
+            ans.textContent += dec.decode(r.value, { stream: true });
+            return pump();
+          });
+        }
+        return pump();
+      })
+      .then(function () {
+        // Перерисовать ленту из персистнутой сессии через htmx (статьи + бейджи).
+        var url = form.dataset.convUrl + (doc ? "?doc=" + encodeURIComponent(doc) : "");
+        window.htmx.ajax("GET", url, { target: "#assistant-conv", swap: "innerHTML" });
+      })
+      .catch(function () {
+        ans.textContent = "Не удалось получить ответ. Обновите страницу и попробуйте снова.";
+      });
+  });
+})();
+</script>
 {% endblock %}

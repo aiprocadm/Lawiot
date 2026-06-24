@@ -53,6 +53,13 @@ def _default_client():
     return anthropic.Anthropic(api_key=key)
 
 
+def _build_messages(question, articles, history):
+    """Сообщения для модели: история диалога + текущий вопрос со статьями."""
+    messages = [{"role": turn["role"], "content": turn["content"]} for turn in (history or [])]
+    messages.append({"role": "user", "content": build_user_content(question, articles)})
+    return messages
+
+
 def answer_question(question, *, document=None, history=None, client=None):
     """Ответ ассистента на вопрос пользователя.
 
@@ -73,10 +80,7 @@ def answer_question(question, *, document=None, history=None, client=None):
     if client is None:
         return AssistantAnswer(question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY)
 
-    messages = [
-        {"role": turn["role"], "content": turn["content"]} for turn in (history or [])
-    ]
-    messages.append({"role": "user", "content": build_user_content(question, articles)})
+    messages = _build_messages(question, articles, history)
 
     try:
         resp = client.messages.create(
@@ -98,9 +102,7 @@ def answer_question(question, *, document=None, history=None, client=None):
             question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error="refusal"
         )
 
-    text = "".join(
-        b.text for b in resp.content if getattr(b, "type", None) == "text"
-    ).strip()
+    text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
     # Пустой ответ (напр. бюджет съело мышление → stop_reason=max_tokens) →
     # не показываем пустой «синтез», откатываемся к статьям.
     if not text:
@@ -108,6 +110,71 @@ def answer_question(question, *, document=None, history=None, client=None):
             question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error="empty"
         )
 
+    return AssistantAnswer(
+        question=question,
+        articles=articles,
+        answer_text=text,
+        mode=MODE_SYNTHESIZED,
+        unverified_citations=unverified_citations(text, articles),
+    )
+
+
+def stream_answer(question, *, document=None, history=None, client=None):
+    """Стриминг grounded-ответа (AI-срез 2).
+
+    Возвращает кортеж `(articles, deltas)`:
+    - `articles` — статьи-основания (готовы сразу, до стрима: для немедленной
+      отрисовки и для проверки цитат в финале);
+    - `deltas` — генератор текстовых дельт ответа (str).
+
+    `deltas` пуст, если нет статей (no_results) или нет клиента (retrieval_only).
+    Исключение по ходу стрима → лог + аккуратное завершение (что успело
+    стримнуться, остаётся; вью не падает). Финал считает вызывающий код через
+    `finalize_answer` по накопленному тексту.
+    """
+    question = (question or "").strip()
+    articles = retrieve(question, document=document)
+    if not articles:
+        return [], iter(())
+
+    if client is None:
+        client = _default_client()
+    if client is None:
+        return articles, iter(())
+
+    messages = _build_messages(question, articles, history)
+
+    def _deltas():
+        try:
+            with client.messages.stream(
+                model=MODEL,
+                max_tokens=MAX_TOKENS,
+                thinking={"type": "adaptive"},
+                output_config={"effort": EFFORT},
+                system=SYSTEM_PROMPT,
+                messages=messages,
+            ) as stream:
+                yield from stream.text_stream
+        except Exception as exc:  # noqa: BLE001 — деградация, не падение вью
+            logger.warning("assistant stream failed: %s", exc)
+
+    return articles, _deltas()
+
+
+def finalize_answer(question, articles, text):
+    """Собрать `AssistantAnswer` из накопленного по стриму текста.
+
+    Зеркалит ветвление `answer_question`: нет статей → no_results; пустой текст →
+    retrieval_only; иначе synthesized с проверкой цитат.
+    """
+    question = (question or "").strip()
+    text = (text or "").strip()
+    if not articles:
+        return AssistantAnswer(question=question, articles=[], mode=MODE_NO_RESULTS)
+    if not text:
+        return AssistantAnswer(
+            question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error="empty"
+        )
     return AssistantAnswer(
         question=question,
         articles=articles,
