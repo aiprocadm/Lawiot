@@ -2,6 +2,13 @@ from django.core.management.base import BaseCommand
 
 from documents.models import Document, PendingAct
 from documents.seed.labor_law import PENDING_ACTS, SEED_ACTS
+from documents.seed.labor_safety_orders import SAFETY_ORDER_ACTS, SAFETY_PENDING_ACTS
+
+# Полный корпус = акты трудового права + кодексы (labor_law) + архив приказов по
+# охране труда (labor_safety_orders). Агрегируем здесь, чтобы держать модули
+# раздельно и не плодить конфликты при параллельной работе над разными частями.
+ALL_ACTS = SEED_ACTS + SAFETY_ORDER_ACTS
+ALL_PENDING = PENDING_ACTS + SAFETY_PENDING_ACTS
 
 
 class Command(BaseCommand):
@@ -9,7 +16,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         created = updated = 0
-        for act in SEED_ACTS:
+        for act in ALL_ACTS:
             defaults = {k: v for k, v in act.items() if k != "slug"}
             _, was_created = Document.objects.update_or_create(slug=act["slug"], defaults=defaults)
             created += was_created
@@ -20,7 +27,7 @@ class Command(BaseCommand):
 
         # Реестр ожидаемых актов: материализуем декларативный список и чистим разрешённые.
         p_created = p_updated = p_removed = 0
-        for act in PENDING_ACTS:
+        for act in ALL_PENDING:
             defaults = {k: v for k, v in act.items() if k != "slug"}
             _, was_created = PendingAct.objects.update_or_create(
                 slug=act["slug"], defaults=defaults
