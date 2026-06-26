@@ -2,7 +2,14 @@ import pytest
 from django.core.management import call_command
 
 from documents.models import Document
-from documents.seed.labor_law import SEED_ACTS, _RF_CODES
+from documents.seed.labor_law import PENDING_ACTS, SEED_ACTS, _RF_CODES
+
+# Акты трудового права (не кодексы), добавленные после приёмки живым fetch+parse.
+_NEW_LABOR_ACTS = {"nesch-125-fz": "125-ФЗ", "sever-4520-1": "4520-1"}
+# Акты, которых хотим в корпусе, но nd= источника пока не найден (PendingAct).
+_EXPECTED_PENDING_SLUGS = {
+    "zanyatost-565-fz", "obyed-rabotodateley-156-fz", "vnim-255-fz",
+}
 
 # Все 23 действующих федеральных кодекса РФ (ТК РФ заведён отдельной записью выше).
 _EXPECTED_CODE_SLUGS = {
@@ -32,6 +39,37 @@ def test_rf_codes_table_is_well_formed():
 def test_seed_acts_has_no_duplicate_slugs():
     slugs = [a["slug"] for a in SEED_ACTS]
     assert len(set(slugs)) == len(slugs), "дублирующиеся slug в SEED_ACTS"
+
+
+def test_new_labor_law_acts_well_formed():
+    """Чистая проверка без БД: новые ФЗ трудового права присутствуют, поля
+    корректны, источник — консолидированный текст ИПС (print=1). Приёмка
+    парсера — живым fetch+parse (см. комментарии в seed/labor_law.py)."""
+    by_slug = {a["slug"]: a for a in SEED_ACTS}
+    for slug, number in _NEW_LABOR_ACTS.items():
+        act = by_slug[slug]
+        assert act["official_number"] == number, slug
+        assert act["doc_type"] == "federal_law", slug
+        assert act["level"] == "federal", slug
+        assert act["source_status"] == "official", slug
+        assert act["auto_ingest"] is True, slug
+        # Консервативно: новые ФЗ не авто-публикуются — только черновики куратору.
+        assert act.get("auto_publish", False) is False, slug
+        assert "doc_itself" in act["source_url"], slug
+        assert "print=1" in act["source_url"], slug
+        assert "nd=" in act["source_url"], slug
+        assert act["sign_date"] is not None, slug
+
+
+def test_pending_acts_table_is_well_formed():
+    """Реестр ожидаемых актов содержит ожидаемые slug; каждая запись с источником-
+    подсказкой для куратора (ips_search_url) и пояснением (note)."""
+    slugs = {p["slug"] for p in PENDING_ACTS}
+    assert _EXPECTED_PENDING_SLUGS <= slugs
+    for p in PENDING_ACTS:
+        assert p["official_number"].strip(), p["slug"]
+        assert p["note"].strip(), p["slug"]
+        assert p["ips_search_url"].startswith("http"), p["slug"]
 
 
 @pytest.mark.django_db
