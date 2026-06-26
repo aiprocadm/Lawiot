@@ -34,6 +34,31 @@ def test_toggle_adds_then_removes(auth):
 
 
 @pytest.mark.django_db
+def test_toggle_honours_internal_next(auth):
+    _, client = auth
+    doc = make_document(slug="tk")
+    make_redaction(doc).publish()
+    target = reverse("bookmark_list")
+    resp = client.post(reverse("bookmark_toggle", args=["tk"]), {"next": target})
+    assert resp.status_code == 302
+    assert resp.url == target
+
+
+@pytest.mark.django_db
+def test_toggle_rejects_external_next(auth):
+    # Open-redirect: чужой `next` не должен уводить пользователя с сайта —
+    # падаем на безопасный document_list.
+    _, client = auth
+    doc = make_document(slug="tk")
+    make_redaction(doc).publish()
+    resp = client.post(
+        reverse("bookmark_toggle", args=["tk"]), {"next": "https://evil.example/phish"}
+    )
+    assert resp.status_code == 302
+    assert resp.url == reverse("document_list")
+
+
+@pytest.mark.django_db
 def test_toggle_requires_post(auth):
     _, client = auth
     doc = make_document(slug="tk")
