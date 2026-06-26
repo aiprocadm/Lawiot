@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from datetime import date
 
@@ -6,6 +7,8 @@ from django.utils.text import slugify
 
 from documents.models import PendingAct
 from ingestion.publication import FEDERAL_MINTRUD_ID, PublicationDoc, iter_documents
+
+logger = logging.getLogger(__name__)
 
 # Органы, которые обходим по умолчанию (стартуем с федерального Минтруда).
 DISCOVERY_AUTHORITIES = [FEDERAL_MINTRUD_ID]
@@ -78,10 +81,20 @@ def discover(
                 try:
                     result = _upsert(doc)
                 except Exception:  # один сбойный документ не должен оборвать орган
+                    logger.warning(
+                        "discovery: сбой upsert документа eo_number=%s",
+                        doc.eo_number,
+                        exc_info=True,
+                    )
                     summary.failed += 1
                     continue
                 setattr(summary, result, getattr(summary, result) + 1)
         except Exception:  # сбой обхода/сети органа не обрывает остальные органы
+            logger.warning(
+                "discovery: сбой обхода органа authority_id=%s",
+                authority_id,
+                exc_info=True,
+            )
             summary.failed += 1
     return summary
 
