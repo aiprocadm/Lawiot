@@ -63,8 +63,12 @@ def test_semantic_adds_document_fts_missed(fake_query_concept_a):
 @pytest.mark.django_db
 def test_no_backend_is_pure_fts(fake_query_concept_a, monkeypatch):
     # Без бэкенда embed_query вернёт None → семантика не добавляется.
+    # Патчим имя в МЕСТЕ ВЫЗОВА: services.py связал его через
+    # `from search.embeddings import embed_query`, поэтому setattr на модуле
+    # embeddings эту копию не затрагивает (и с установленным sentence-transformers
+    # реальная модель отработала бы и добавила «da»).
     embeddings.reset_backend()
-    monkeypatch.setattr(embeddings, "embed_query", lambda text: None)
+    monkeypatch.setattr("search.services.embed_query", lambda text: None)
     da, _ = _publish_article("da", "200", "нечто про марсоход", embedding=_vec(True))
     db, _ = _publish_article("db", "100", "увольнение работника", embedding=_vec(False))
 
