@@ -17,6 +17,11 @@ doc_itself&print=1 (консолидированный HTML; PDF на publicatio
 auto_ingest=True + auto_publish=True: ежедневный sweep один раз заингестит и
 опубликует текст (акты статичны — change-detection далее их замораживает),
 после чего они читаемы/ищутся в корпусе со статусом «утратил силу».
+
+Кроме архива здесь же — действующие нормативные акты по охране труда с
+разрешённым nd= ИПС (SAFETY_NORMATIVE_ACTS, status=in_force), напр. ПП РФ
+№ 2464 (порядок обучения по ОТ). Они НЕ авто-публикуются (auto_publish=False) —
+только черновик куратору, как новые ФЗ в labor_law.
 """
 
 import datetime
@@ -139,6 +144,40 @@ SAFETY_PENDING_ACTS = [
     for slug, title, number, eo in _MISSING
 ]
 
+_GOV = "Правительство Российской Федерации"
+
+# Действующие нормативные акты (постановления/ФЗ) с РАЗРЕШЁННЫМ nd= ИПС — в отличие
+# от архива приказов выше они НЕ утратили силу. nd= найден через ИПС-intelsearch
+# (Claude-in-Chrome) и проверен живым fetch+parse (doc_itself&print=1). Заводим
+# консервативно: auto_ingest=True (черновик куратору), auto_publish=False — как
+# новые ФЗ в labor_law (авто-публикуются только ТК РФ + кодексы).
+# (slug, title, number, doc_type, issuing_body, sign_iso, nd)
+_NORMATIVE_ACTS = [
+    ("ot-obuchenie-2464-2021",
+     "О порядке обучения по охране труда и проверки знания требований охраны труда",
+     "2464", "decree", _GOV, "2021-12-24", "602682753"),  # ПП РФ, действует до 01.09.2026
+]
+
+
+def _normative_act(slug, title, number, doc_type, issuing_body, sign_iso, nd):
+    return {
+        "slug": slug,
+        "doc_type": doc_type,
+        "title": title,
+        "official_number": number,
+        "issuing_body": issuing_body,
+        "status": "in_force",  # действующий акт (не архив)
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date.fromisoformat(sign_iso),
+        "source_url": _IPS_DOC_URL.format(nd=nd),
+        "auto_ingest": True,
+        "auto_publish": False,  # консервативно: только черновик куратору
+    }
+
+
+SAFETY_NORMATIVE_ACTS = [_normative_act(*row) for row in _NORMATIVE_ACTS]
+
 # Нормативные акты + федеральные поправки из расширенного списка пользователя
 # (143 ссылки), прошедшие фильтр «нормативные + фед. поправки» (региональные
 # конкурсы и оффтоп отброшены). nd= ИПС ещё не разрешён (Claude-in-Chrome был
@@ -146,8 +185,6 @@ SAFETY_PENDING_ACTS = [
 # (decree → parse_points, federal_law → parse_structure), когда найдётся nd=.
 # (slug, title, number, doc_type, eo, note)
 _NORMATIVE_PENDING = [
-    ("ot-obuchenie-2464-2021", "О порядке обучения по охране труда и проверки знания требований охраны труда", "2464", "decree", "0001202112290004",
-     "ПП РФ от 24.12.2021 № 2464 — действующий до 01.09.2026 центральный акт обучения по охране труда (заменил порядок 1/29). Высокий приоритет: разрешить nd= ИПС и завести с текстом."),
     ("pp-290-2014", "Постановление Правительства Российской Федерации от 14.04.2014 № 290", "290", "decree", "0001201404210033",
      "Постановление Правительства 2014 г. (охрана труда). Проверить тему и завести при релевантности."),
     ("fz-421-2013", "О внесении изменений в отдельные законодательные акты Российской Федерации в связи с принятием Федерального закона «О специальной оценке условий труда»", "421-ФЗ", "federal_law", "0001201312300012",

@@ -2,12 +2,17 @@ from django.core.management.base import BaseCommand
 
 from documents.models import Document, PendingAct
 from documents.seed.labor_law import PENDING_ACTS, SEED_ACTS
-from documents.seed.labor_safety_orders import SAFETY_ORDER_ACTS, SAFETY_PENDING_ACTS
+from documents.seed.labor_safety_orders import (
+    SAFETY_NORMATIVE_ACTS,
+    SAFETY_ORDER_ACTS,
+    SAFETY_PENDING_ACTS,
+)
 
 # Полный корпус = акты трудового права + кодексы (labor_law) + архив приказов по
-# охране труда (labor_safety_orders). Агрегируем здесь, чтобы держать модули
-# раздельно и не плодить конфликты при параллельной работе над разными частями.
-ALL_ACTS = SEED_ACTS + SAFETY_ORDER_ACTS
+# охране труда + действующие нормативные акты по ОТ (labor_safety_orders).
+# Агрегируем здесь, чтобы держать модули раздельно и не плодить конфликты при
+# параллельной работе над разными частями.
+ALL_ACTS = SEED_ACTS + SAFETY_ORDER_ACTS + SAFETY_NORMATIVE_ACTS
 ALL_PENDING = PENDING_ACTS + SAFETY_PENDING_ACTS
 
 

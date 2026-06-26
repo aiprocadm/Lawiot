@@ -3,6 +3,7 @@ from django.core.management import call_command
 
 from documents.models import Document
 from documents.seed.labor_safety_orders import (
+    SAFETY_NORMATIVE_ACTS,
     SAFETY_ORDER_ACTS,
     SAFETY_PENDING_ACTS,
     _SAFETY_ORDERS,
@@ -31,16 +32,35 @@ def test_safety_orders_table_well_formed():
 
 
 def test_safety_pending_acts_well_formed():
-    """Реестр ожидаемых: 8 приказов без HTML в ИПС (скан-PDF) + 7 нормативных
-    актов/фед. поправок из расширенного списка (nd= ещё не разрешён)."""
-    assert len(SAFETY_PENDING_ACTS) == 15
+    """Реестр ожидаемых: 8 приказов без HTML в ИПС (скан-PDF) + 6 нормативных
+    актов/фед. поправок из расширенного списка (nd= ещё не разрешён). ПП 2464
+    выбыл из реестра — его nd= разрешён, он перешёл в SAFETY_NORMATIVE_ACTS."""
+    assert len(SAFETY_PENDING_ACTS) == 14
     for p in SAFETY_PENDING_ACTS:
         assert p["doc_type"] in {"order", "decree", "federal_law"}, p["slug"]
         assert p["official_number"].strip(), p["slug"]
         assert p["note"].strip()
         assert p["ips_search_url"].startswith("http")
-    # ключевой действующий акт обучения по ОТ присутствует в реестре
-    assert any(p["slug"] == "ot-obuchenie-2464-2021" for p in SAFETY_PENDING_ACTS)
+    # ПП 2464 уже разрешён и заведён — его не должно быть среди ожидающих
+    assert not any(p["slug"] == "ot-obuchenie-2464-2021" for p in SAFETY_PENDING_ACTS)
+
+
+def test_safety_normative_acts_well_formed():
+    """Действующие нормативные акты по ОТ с разрешённым nd= ИПС. Приёмка парсера —
+    живым fetch+parse (см. seed/labor_safety_orders.py). Консервативно:
+    auto_ingest=True (черновик куратору), auto_publish=False."""
+    by_slug = {a["slug"]: a for a in SAFETY_NORMATIVE_ACTS}
+    act = by_slug["ot-obuchenie-2464-2021"]
+    assert act["official_number"] == "2464"
+    assert act["doc_type"] == "decree"
+    assert act["status"] == "in_force"  # действующий, не архив
+    assert act["level"] == "federal"
+    assert act["source_status"] == "official"
+    assert act["auto_ingest"] is True
+    assert act["auto_publish"] is False
+    assert "doc_itself" in act["source_url"] and "print=1" in act["source_url"]
+    assert "nd=" in act["source_url"]
+    assert act["sign_date"] is not None
 
 
 @pytest.mark.django_db
@@ -54,3 +74,8 @@ def test_seed_corpus_materializes_safety_orders():
     assert sample.official_number == "782н"
     assert "работе на высоте" in sample.title
     assert "doc_itself" in sample.source_url
+    # действующий нормативный акт (ПП 2464) заведён со статусом in_force
+    decree = Document.objects.get(slug="ot-obuchenie-2464-2021")
+    assert decree.doc_type == "decree"
+    assert decree.status == "in_force"
+    assert decree.auto_ingest is True and decree.auto_publish is False
