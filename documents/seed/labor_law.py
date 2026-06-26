@@ -80,6 +80,92 @@ SEED_ACTS = [
         # auto_ingest даёт лишь ЧЕРНОВИКИ для куратора (auto_publish остаётся False).
         "auto_ingest": True,
     },
+    {
+        "slug": "nesch-125-fz",
+        "doc_type": "federal_law",
+        "title": (
+            "Об обязательном социальном страховании от несчастных случаев "
+            "на производстве и профессиональных заболеваний"
+        ),
+        "official_number": "125-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1998, 7, 24),  # подписан 24.07.1998
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102054606&print=1",
+        # Приёмка парсера на живом fetch+parse (2026-06-26): заголовок совпал,
+        # 8 глав / 74 статьи / 0 «сирот». auto_ingest даёт лишь ЧЕРНОВИКИ
+        # для куратора (auto_publish остаётся False — без авто-публикации).
+        "auto_ingest": True,
+    },
+    {
+        "slug": "sever-4520-1",
+        "doc_type": "federal_law",  # «Закон РФ» 1993 г.; ближайший тип — федеральный закон
+        "title": (
+            "О государственных гарантиях и компенсациях для лиц, работающих "
+            "и проживающих в районах Крайнего Севера и приравненных к ним местностях"
+        ),
+        "official_number": "4520-1",  # дореформенная нумерация (не -ФЗ)
+        "issuing_body": "Верховный Совет Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1993, 2, 19),  # подписан 19.02.1993
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102021716&print=1",
+        # Приёмка парсера на живом fetch+parse (2026-06-26): шапка «ЗАКОН РФ /
+        # О государственных гарантиях… Крайнего Севера», 8 разделов / 22 статьи /
+        # 0 «сирот». auto_ingest даёт лишь ЧЕРНОВИКИ для куратора (auto_publish False).
+        "auto_ingest": True,
+    },
+    {
+        "slug": "socstrah-165-fz",
+        "doc_type": "federal_law",
+        "title": "Об основах обязательного социального страхования",
+        "official_number": "165-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1999, 7, 16),  # подписан 16.07.1999
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102061035&print=1",
+        # Рамочный закон всей системы соцстраха (связывает 125-ФЗ и 255-ФЗ). Приёмка
+        # парсера на живом fetch+parse (2026-06-26): заголовок совпал, 5 глав /
+        # 29 статей / 0 «сирот». auto_ingest → ЧЕРНОВИКИ куратору (auto_publish False).
+        "auto_ingest": True,
+    },
+    {
+        "slug": "posobiya-deti-81-fz",
+        "doc_type": "federal_law",
+        "title": "О государственных пособиях гражданам, имеющим детей",
+        "official_number": "81-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1995, 5, 19),  # подписан 19.05.1995
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102035632&print=1",
+        # Пособия по материнству/детству (смежно с 255-ФЗ). Приёмка парсера на живом
+        # fetch+parse (2026-06-26): заголовок совпал, 3 главы / 38 статей / 0 «сирот».
+        # auto_ingest → ЧЕРНОВИКИ куратору (auto_publish остаётся False).
+        "auto_ingest": True,
+    },
+    {
+        "slug": "rtk-92-fz",
+        "doc_type": "federal_law",
+        "title": "О Российской трёхсторонней комиссии по регулированию социально-трудовых отношений",
+        "official_number": "92-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1999, 5, 1),  # подписан 01.05.1999
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102059476&print=1",
+        # Ядро социального партнёрства (ТК РФ, раздел II). Приёмка парсера на живом
+        # fetch+parse (2026-06-26): заголовок совпал, ПЛОСКИЙ акт — 11 статей без глав,
+        # 0 «сирот». auto_ingest → ЧЕРНОВИКИ куратору (auto_publish остаётся False).
+        "auto_ingest": True,
+    },
 ]
 
 # --- Кодексы Российской Федерации -------------------------------------------
@@ -167,6 +253,37 @@ PENDING_ACTS = [
             "(там только отменённый предшественник — Закон РФ 1032-1, «Утратил силу»); "
             "на publication.pravo.gov.ru — скан-PDF исходной редакции (нужен OCR, и это "
             "не консолидированный текст). Ждём появления консолидированного 565-ФЗ в ИПС."
+        ),
+        "ips_search_url": "http://pravo.gov.ru/proxy/ips/?start_search&fattrib=1",
+    },
+    {
+        "slug": "obyed-rabotodateley-156-fz",
+        "doc_type": "federal_law",
+        "title": "Об объединениях работодателей",
+        "official_number": "156-ФЗ",
+        "note": (
+            "Закон социального партнёрства (27.11.2002 № 156-ФЗ). Главный nd= "
+            "консолидированного текста не находится headless: ИПС-поиск отдаёт "
+            "фреймсет→500, а WebSearch по pravo.gov.ru даёт только поправки "
+            "(355-ФЗ 2015 и т.п.), не основной акт. Нужен nd= из браузера, "
+            "тогда добавить в SEED_ACTS (приёмка fetch+parse, как у 125-ФЗ)."
+        ),
+        "ips_search_url": "http://pravo.gov.ru/proxy/ips/?start_search&fattrib=1",
+    },
+    {
+        "slug": "vnim-255-fz",
+        "doc_type": "federal_law",
+        "title": (
+            "Об обязательном социальном страховании на случай временной "
+            "нетрудоспособности и в связи с материнством"
+        ),
+        "official_number": "255-ФЗ",
+        "note": (
+            "Базовый закон о больничных и пособиях по материнству (29.12.2006 "
+            "№ 255-ФЗ). Главный nd= headless не найден: WebSearch по pravo.gov.ru "
+            "возвращает только поправки (455-ФЗ 2025, 102431338 и др.) и "
+            "отменённого предшественника 102111246. Нужен nd= из браузера → "
+            "приёмка fetch+parse → SEED_ACTS."
         ),
         "ips_search_url": "http://pravo.gov.ru/proxy/ips/?start_search&fattrib=1",
     },
