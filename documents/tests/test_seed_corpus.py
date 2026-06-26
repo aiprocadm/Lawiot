@@ -5,7 +5,13 @@ from documents.models import Document
 from documents.seed.labor_law import PENDING_ACTS, SEED_ACTS, _RF_CODES
 
 # Акты трудового права (не кодексы), добавленные после приёмки живым fetch+parse.
-_NEW_LABOR_ACTS = {"nesch-125-fz": "125-ФЗ", "sever-4520-1": "4520-1"}
+_NEW_LABOR_ACTS = {
+    "nesch-125-fz": "125-ФЗ",
+    "sever-4520-1": "4520-1",
+    "socstrah-165-fz": "165-ФЗ",
+    "posobiya-deti-81-fz": "81-ФЗ",
+    "rtk-92-fz": "92-ФЗ",
+}
 # Акты, которых хотим в корпусе, но nd= источника пока не найден (PendingAct).
 _EXPECTED_PENDING_SLUGS = {
     "zanyatost-565-fz", "obyed-rabotodateley-156-fz", "vnim-255-fz",

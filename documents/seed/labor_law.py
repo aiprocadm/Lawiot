@@ -118,6 +118,54 @@ SEED_ACTS = [
         # 0 «сирот». auto_ingest даёт лишь ЧЕРНОВИКИ для куратора (auto_publish False).
         "auto_ingest": True,
     },
+    {
+        "slug": "socstrah-165-fz",
+        "doc_type": "federal_law",
+        "title": "Об основах обязательного социального страхования",
+        "official_number": "165-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1999, 7, 16),  # подписан 16.07.1999
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102061035&print=1",
+        # Рамочный закон всей системы соцстраха (связывает 125-ФЗ и 255-ФЗ). Приёмка
+        # парсера на живом fetch+parse (2026-06-26): заголовок совпал, 5 глав /
+        # 29 статей / 0 «сирот». auto_ingest → ЧЕРНОВИКИ куратору (auto_publish False).
+        "auto_ingest": True,
+    },
+    {
+        "slug": "posobiya-deti-81-fz",
+        "doc_type": "federal_law",
+        "title": "О государственных пособиях гражданам, имеющим детей",
+        "official_number": "81-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1995, 5, 19),  # подписан 19.05.1995
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102035632&print=1",
+        # Пособия по материнству/детству (смежно с 255-ФЗ). Приёмка парсера на живом
+        # fetch+parse (2026-06-26): заголовок совпал, 3 главы / 38 статей / 0 «сирот».
+        # auto_ingest → ЧЕРНОВИКИ куратору (auto_publish остаётся False).
+        "auto_ingest": True,
+    },
+    {
+        "slug": "rtk-92-fz",
+        "doc_type": "federal_law",
+        "title": "О Российской трёхсторонней комиссии по регулированию социально-трудовых отношений",
+        "official_number": "92-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(1999, 5, 1),  # подписан 01.05.1999
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102059476&print=1",
+        # Ядро социального партнёрства (ТК РФ, раздел II). Приёмка парсера на живом
+        # fetch+parse (2026-06-26): заголовок совпал, ПЛОСКИЙ акт — 11 статей без глав,
+        # 0 «сирот». auto_ingest → ЧЕРНОВИКИ куратору (auto_publish остаётся False).
+        "auto_ingest": True,
+    },
 ]
 
 # --- Кодексы Российской Федерации -------------------------------------------
