@@ -31,13 +31,16 @@ def test_safety_orders_table_well_formed():
 
 
 def test_safety_pending_acts_well_formed():
-    """8 приказов без консолидированного HTML в ИПС → PendingAct (только скан-PDF)."""
-    assert len(SAFETY_PENDING_ACTS) == 8
+    """Реестр ожидаемых: 8 приказов без HTML в ИПС (скан-PDF) + 7 нормативных
+    актов/фед. поправок из расширенного списка (nd= ещё не разрешён)."""
+    assert len(SAFETY_PENDING_ACTS) == 15
     for p in SAFETY_PENDING_ACTS:
-        assert p["doc_type"] == "order", p["slug"]
-        assert p["official_number"].endswith("н"), p["slug"]
+        assert p["doc_type"] in {"order", "decree", "federal_law"}, p["slug"]
+        assert p["official_number"].strip(), p["slug"]
         assert p["note"].strip()
         assert p["ips_search_url"].startswith("http")
+    # ключевой действующий акт обучения по ОТ присутствует в реестре
+    assert any(p["slug"] == "ot-obuchenie-2464-2021" for p in SAFETY_PENDING_ACTS)
 
 
 @pytest.mark.django_db
