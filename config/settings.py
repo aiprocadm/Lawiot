@@ -75,15 +75,31 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-if env("DATABASE_URL", default=""):
-    DATABASES = {"default": env.db("DATABASE_URL")}
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+
+def database_config(database_url: str) -> dict:
+    """Конфиг БД из DATABASE_URL. Только PostgreSQL.
+
+    Код использует pgvector (VectorField + HNSW) и полнотекстовый поиск Postgres
+    (SearchVectorField + GinIndex), поэтому SQLite не поддерживается. Прежний
+    «тихий» фолбэк на SQLite приводил к падению `migrate` на миграции VectorField
+    с непонятной ошибкой на чистом устройстве. Лучше упасть явно и понятно.
+    """
+    if not database_url:
+        raise ImproperlyConfigured(
+            "DATABASE_URL не задан. Lawiot работает только на PostgreSQL "
+            "(pgvector + полнотекстовый поиск); SQLite не поддерживается. Укажите "
+            "DATABASE_URL, напр. postgres://lawiot:lawiot@localhost:5433/lawiot."
+        )
+    config = env.db_url_config(database_url)
+    if "postgresql" not in config.get("ENGINE", ""):
+        raise ImproperlyConfigured(
+            f"Lawiot требует PostgreSQL, а DATABASE_URL указывает на движок "
+            f"{config.get('ENGINE')!r}. Используйте postgres://…"
+        )
+    return config
+
+
+DATABASES = {"default": database_config(env("DATABASE_URL", default=""))}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},

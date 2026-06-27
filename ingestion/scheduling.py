@@ -1,10 +1,8 @@
 import logging
 from dataclasses import dataclass
 
-import httpx
-
 from documents.models import Document
-from ingestion.fetching import DEFAULT_TIMEOUT, MAX_RETRIES
+from ingestion.fetching import new_client
 from ingestion.models import IngestionJob
 from ingestion.services import IngestionTarget, ingest_target
 
@@ -46,16 +44,6 @@ _STATUS_FIELD = {
 }
 
 
-def _new_client():
-    # Один клиент на весь обход: переиспользование соединений (вежливость к источнику).
-    # Параметры совпадают с ingestion.fetching.fetch; User-Agent добавляет сам fetch.
-    return httpx.Client(
-        timeout=DEFAULT_TIMEOUT,
-        transport=httpx.HTTPTransport(retries=MAX_RETRIES),
-        follow_redirects=True,
-    )
-
-
 def sweep_targets(*, client=None) -> SweepSummary:
     """Обойти все цели авто-приёма, для каждой вызвать ingest_target.
 
@@ -65,7 +53,7 @@ def sweep_targets(*, client=None) -> SweepSummary:
     """
     summary = SweepSummary()
     owns_client = client is None
-    client = client or _new_client()
+    client = client or new_client()
     try:
         for target in iter_targets():
             summary.total += 1

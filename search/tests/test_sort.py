@@ -6,13 +6,6 @@ from django.urls import reverse
 from documents.tests.factories import make_document, make_redaction
 
 
-@pytest.fixture
-def auth_client(client, django_user_model):
-    user = django_user_model.objects.create_user("reader", password="pass12345")
-    client.force_login(user)
-    return client
-
-
 @pytest.mark.django_db
 def test_sort_by_date_orders_newest_first(auth_client):
     old = make_document(slug="old", title="Старый акт", official_number="1",

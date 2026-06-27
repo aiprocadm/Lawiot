@@ -20,16 +20,28 @@ class FetchResult:
     fetched_at: datetime
 
 
+def new_client() -> httpx.Client:
+    """Единая фабрика httpx-клиента для всех модулей ingestion.
+
+    Одинаковые тайм-аут/ретраи/редиректы + вежливый User-Agent по умолчанию.
+    `fetch()` всё равно проставляет User-Agent на каждый запрос (на случай
+    клиента-мока без заголовка), поэтому дефолтный заголовок здесь безвреден и
+    лишь упрощает прямые `.get()` в ips_resolve/publication.
+    """
+    return httpx.Client(
+        timeout=DEFAULT_TIMEOUT,
+        transport=httpx.HTTPTransport(retries=MAX_RETRIES),
+        follow_redirects=True,
+        headers={"User-Agent": USER_AGENT},
+    )
+
+
 def fetch(url: str, *, client: httpx.Client | None = None) -> FetchResult:
     """Вежливо скачать URL. Сетевой эффект изолирован здесь, чтобы разбор оставался чистым.
     В тестах передаётся `client` с `httpx.MockTransport` — живая сеть не нужна."""
     owns_client = client is None
     if client is None:
-        client = httpx.Client(
-            timeout=DEFAULT_TIMEOUT,
-            transport=httpx.HTTPTransport(retries=MAX_RETRIES),
-            follow_redirects=True,
-        )
+        client = new_client()
     try:
         response = client.get(url, headers={"User-Agent": USER_AGENT})
         response.raise_for_status()
