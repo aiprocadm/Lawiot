@@ -63,8 +63,9 @@ def test_history_prepended_before_grounded_current(published):
     messages = fake.calls[0]["messages"]
     assert messages[0]["content"] == "первый вопрос"
     assert messages[1]["content"] == "первый ответ"
-    # текущий вопрос — последним и заземлён статьями
-    assert "Статьи из корпуса" in messages[-1]["content"]
+    # текущий вопрос — последним и заземлён статьями (в тегах-разделителях)
+    assert "<articles>" in messages[-1]["content"]
+    assert "отпуск компенсация" in messages[-1]["content"]
 
 
 @pytest.mark.django_db

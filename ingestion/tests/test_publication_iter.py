@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 
 from ingestion.publication import ALLOWED_PAGE_SIZES, FEDERAL_MINTRUD_ID, PAGE_SIZE, iter_documents
 
@@ -31,6 +32,17 @@ def test_iter_documents_walks_pages_until_empty():
     docs = list(iter_documents(FEDERAL_MINTRUD_ID, client=_client(calls)))
     assert [d.number for d in docs] == ["200н", "193н"]
     assert calls == [1, 2]  # дошёл до пустой второй страницы и остановился
+
+
+def test_iter_documents_raises_clear_error_on_non_json():
+    # Дрейф контракта: 200 OK, но тело — не JSON (HTML-заглушка прокси/портала).
+    # Должно быть понятное доменное сообщение, а не голый JSONDecodeError в трейсе.
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="<html><body>502 Bad Gateway</body></html>")
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(RuntimeError, match="не-JSON"):
+        list(iter_documents(FEDERAL_MINTRUD_ID, client=client))
 
 
 def test_iter_documents_respects_max_pages():

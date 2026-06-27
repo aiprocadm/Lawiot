@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.db.models import Exists, OuterRef
 from django.urls import path
 
 from documents.admin_views import (
@@ -111,10 +112,16 @@ class PendingActResolvedFilter(admin.SimpleListFilter):
         value = self.value()
         if value not in {"yes", "no"}:
             return queryset
-        resolved_ids = [pa.pk for pa in queryset if pa.is_resolved]
-        if value == "yes":
-            return queryset.filter(pk__in=resolved_ids)
-        return queryset.exclude(pk__in=resolved_ids)
+        # Одним SQL-запросом вместо .exists() на каждый акт (N+1).
+        # Зеркалит PendingAct.is_resolved на уровне БД.
+        resolved = Document.objects.filter(
+            official_number=OuterRef("official_number"),
+            doc_type=OuterRef("doc_type"),
+            redactions__is_current=True,
+            redactions__review_status=Redaction.ReviewStatus.PUBLISHED,
+        )
+        annotated = queryset.annotate(_is_resolved=Exists(resolved))
+        return annotated.filter(_is_resolved=(value == "yes"))
 
 
 @admin.action(description="Подобрать nd из ИПС (best-effort)")

@@ -1,7 +1,59 @@
 import pytest
 
-from documents.admin import bind_to_ips, suggest_nd_candidates
-from documents.models import Document, PendingAct
+from documents.admin import (
+    PendingActResolvedFilter,
+    bind_to_ips,
+    suggest_nd_candidates,
+)
+from documents.models import Document, PendingAct, Redaction
+from documents.tests.factories import make_document, make_redaction
+
+
+def _make_resolved_act(i):
+    doc = make_document(
+        slug=f"doc-{i}",
+        official_number=f"{i}-ФЗ",
+        doc_type=Document.DocType.ORDER,
+    )
+    make_redaction(
+        document=doc,
+        is_current=True,
+        review_status=Redaction.ReviewStatus.PUBLISHED,
+    )
+    return PendingAct.objects.create(
+        slug=f"act-{i}",
+        title=f"Акт {i}",
+        official_number=f"{i}-ФЗ",
+        doc_type=Document.DocType.ORDER,
+    )
+
+
+@pytest.mark.django_db
+def test_resolved_filter_uses_constant_queries(django_assert_max_num_queries):
+    """Фильтр «в корпусе» не должен делать запрос на каждый акт (N+1).
+    Число актов растёт — число запросов остаётся ограниченным."""
+    for i in range(6):
+        _make_resolved_act(i)
+        PendingAct.objects.create(
+            slug=f"un-{i}",
+            title=f"Не в корпусе {i}",
+            official_number=f"u{i}",
+            doc_type=Document.DocType.ORDER,
+        )
+
+    flt = PendingActResolvedFilter(
+        request=None,
+        params={"resolved": ["yes"]},
+        model=PendingAct,
+        model_admin=None,
+    )
+    assert flt.value() == "yes"
+
+    with django_assert_max_num_queries(3):
+        result = list(flt.queryset(None, PendingAct.objects.all()))
+
+    assert len(result) == 6
+    assert all(act.is_resolved for act in result)
 
 
 @pytest.mark.django_db

@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -106,7 +107,16 @@ def iter_documents(
                 },
             )
             resp.raise_for_status()
-            data = resp.json()
+            try:
+                data = resp.json()
+            except (json.JSONDecodeError, ValueError) as exc:
+                # Дрейф контракта: 200 OK, но тело — не JSON (HTML-заглушка прокси
+                # или портала). Чёткое доменное сообщение вместо голого
+                # JSONDecodeError в логе discovery (там это считается сбоем органа).
+                raise RuntimeError(
+                    f"портал опубликования вернул не-JSON "
+                    f"(authority_id={authority_id}, страница {index})"
+                ) from exc
             items = data.get("items") or []
             if not items:
                 return
