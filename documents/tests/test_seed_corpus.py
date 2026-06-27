@@ -11,11 +11,10 @@ _NEW_LABOR_ACTS = {
     "socstrah-165-fz": "165-ФЗ",
     "posobiya-deti-81-fz": "81-ФЗ",
     "rtk-92-fz": "92-ФЗ",
+    "obyed-rabotodateley-156-fz": "156-ФЗ",  # nd= найден через Claude-in-Chrome
 }
 # Акты, которых хотим в корпусе, но nd= источника пока не найден (PendingAct).
-_EXPECTED_PENDING_SLUGS = {
-    "zanyatost-565-fz", "obyed-rabotodateley-156-fz", "vnim-255-fz",
-}
+_EXPECTED_PENDING_SLUGS = {"zanyatost-565-fz", "vnim-255-fz"}
 
 # Все 23 действующих федеральных кодекса РФ (ТК РФ заведён отдельной записью выше).
 _EXPECTED_CODE_SLUGS = {

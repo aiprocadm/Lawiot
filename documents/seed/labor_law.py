@@ -166,6 +166,22 @@ SEED_ACTS = [
         # 0 «сирот». auto_ingest → ЧЕРНОВИКИ куратору (auto_publish остаётся False).
         "auto_ingest": True,
     },
+    {
+        "slug": "obyed-rabotodateley-156-fz",
+        "doc_type": "federal_law",
+        "title": "Об объединениях работодателей",
+        "official_number": "156-ФЗ",
+        "issuing_body": "Федеральное Собрание Российской Федерации",
+        "status": "in_force",
+        "level": "federal",
+        "source_status": "official",
+        "sign_date": datetime.date(2002, 11, 27),  # подписан 27.11.2002
+        "source_url": "http://pravo.gov.ru/proxy/ips/?doc_itself=&nd=102079011&print=1",
+        # Закон социального партнёрства. nd= найден через Claude-in-Chrome
+        # (ИПС-intelsearch) и проверен живым fetch+parse (2026-06-26): заголовок
+        # совпал, ПЛОСКИЙ акт — 21 статья, 0 «сирот». auto_ingest → ЧЕРНОВИКИ куратору.
+        "auto_ingest": True,
+    },
 ]
 
 # --- Кодексы Российской Федерации -------------------------------------------
@@ -253,20 +269,6 @@ PENDING_ACTS = [
             "(там только отменённый предшественник — Закон РФ 1032-1, «Утратил силу»); "
             "на publication.pravo.gov.ru — скан-PDF исходной редакции (нужен OCR, и это "
             "не консолидированный текст). Ждём появления консолидированного 565-ФЗ в ИПС."
-        ),
-        "ips_search_url": "http://pravo.gov.ru/proxy/ips/?start_search&fattrib=1",
-    },
-    {
-        "slug": "obyed-rabotodateley-156-fz",
-        "doc_type": "federal_law",
-        "title": "Об объединениях работодателей",
-        "official_number": "156-ФЗ",
-        "note": (
-            "Закон социального партнёрства (27.11.2002 № 156-ФЗ). Главный nd= "
-            "консолидированного текста не находится headless: ИПС-поиск отдаёт "
-            "фреймсет→500, а WebSearch по pravo.gov.ru даёт только поправки "
-            "(355-ФЗ 2015 и т.п.), не основной акт. Нужен nd= из браузера, "
-            "тогда добавить в SEED_ACTS (приёмка fetch+parse, как у 125-ФЗ)."
         ),
         "ips_search_url": "http://pravo.gov.ru/proxy/ips/?start_search&fattrib=1",
     },
