@@ -1,15 +1,27 @@
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(DEBUG=(bool, False))
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("SECRET_KEY", default="dev-insecure-key-change-me")
-DEBUG = env("DEBUG", default=True)
+# Дефолтный ключ годится ТОЛЬКО для локальной разработки. В проде (DEBUG=False)
+# он запрещён — см. проверку ниже.
+INSECURE_SECRET_KEY = "dev-insecure-key-change-me"
+SECRET_KEY = env("SECRET_KEY", default=INSECURE_SECRET_KEY)
+# По умолчанию False: безопаснее «упасть» на локальной забывчивости, чем
+# случайно раскрыть трейсбэки и окружение в проде.
+DEBUG = env("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+
+if not DEBUG and SECRET_KEY == INSECURE_SECRET_KEY:
+    raise ImproperlyConfigured(
+        "В продакшене (DEBUG=False) необходимо задать собственный SECRET_KEY "
+        "через переменную окружения."
+    )
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -118,4 +130,72 @@ Q_CLUSTER = {
     "max_attempts": 1,  # обход идемпотентен — не копим повторы при сбое
     "catch_up": False,  # не «отыгрывать» пропущенные прогоны после простоя
     "label": "Django Q",
+}
+
+# --- Безопасность транспорта и cookie -------------------------------------
+# В проде включаем HTTPS-only поведение. Локально (DEBUG=True) оставляем
+# выключенным, иначе по http нельзя залогиниться (secure-cookie не отправится).
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31_536_000  # 1 год
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    # Доверяем заголовку прокси о схеме (за nginx/traefik) — иначе бесконечный
+    # редирект. Включать, только если прокси действительно ставит этот заголовок.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+
+# --- Логирование ----------------------------------------------------------
+# Пишем в stdout (12-factor): сбор/ротацию делает рантайм (Docker/systemd),
+# а не приложение. Наши подсистемы (ingestion/assistant/search) намеренно
+# «деградируют, а не падают» — без логов проглоченные ошибки невидимы.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {"handlers": ["console"], "level": "INFO" if DEBUG else "WARNING"},
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "ingestion": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "assistant": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "search": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }
