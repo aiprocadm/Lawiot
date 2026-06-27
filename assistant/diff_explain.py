@@ -13,7 +13,14 @@ API — режим `unavailable` (сам diff остаётся виден чит
 import logging
 from dataclasses import dataclass
 
-from assistant.services import EFFORT, MAX_TOKENS, MODEL, _default_client
+from assistant.services import (
+    EFFORT,
+    MAX_TOKENS,
+    MODEL,
+    REQUEST_TIMEOUT,
+    _default_client,
+    _log_usage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +89,13 @@ def explain_diff(changes, *, client=None):
             output_config={"effort": EFFORT},
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": build_diff_prompt(changes)}],
+            timeout=REQUEST_TIMEOUT,
         )
     except Exception as exc:  # noqa: BLE001 — любая ошибка API → деградация, не падение
         logger.warning("diff explanation failed: %s", exc)
         return DiffExplanation(mode=MODE_UNAVAILABLE, error=str(exc))
+
+    _log_usage(resp, "diff")
 
     if getattr(resp, "stop_reason", None) == "refusal":
         return DiffExplanation(mode=MODE_UNAVAILABLE, error="refusal")

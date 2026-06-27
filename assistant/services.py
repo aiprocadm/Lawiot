@@ -28,6 +28,23 @@ MODEL = "claude-opus-4-8"
 # оставив пустой ответ.
 MAX_TOKENS = 16000
 EFFORT = "medium"
+# Жёсткий потолок на сетевой вызов: без него зависший API держит воркер/соединение
+# бесконечно. Покрывает медленную, но реальную генерацию (non-streaming).
+REQUEST_TIMEOUT = 120.0
+
+
+def _log_usage(message, where):
+    """Залогировать расход токенов (наблюдаемость стоимости). Best-effort:
+    у фейков/частичных ответов usage может не быть."""
+    usage = getattr(message, "usage", None)
+    if usage is None:
+        return
+    logger.info(
+        "assistant usage [%s]: in=%s out=%s",
+        where,
+        getattr(usage, "input_tokens", "?"),
+        getattr(usage, "output_tokens", "?"),
+    )
 
 MODE_SYNTHESIZED = "synthesized"
 MODE_RETRIEVAL_ONLY = "retrieval_only"
@@ -90,12 +107,15 @@ def answer_question(question, *, document=None, history=None, client=None):
             output_config={"effort": EFFORT},
             system=SYSTEM_PROMPT,
             messages=messages,
+            timeout=REQUEST_TIMEOUT,
         )
     except Exception as exc:  # noqa: BLE001 — любая ошибка API → деградация, не падение
         logger.warning("assistant synthesis failed: %s", exc)
         return AssistantAnswer(
             question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error=str(exc)
         )
+
+    _log_usage(resp, "answer")
 
     if getattr(resp, "stop_reason", None) == "refusal":
         return AssistantAnswer(
@@ -153,8 +173,13 @@ def stream_answer(question, *, document=None, history=None, client=None):
                 output_config={"effort": EFFORT},
                 system=SYSTEM_PROMPT,
                 messages=messages,
+                timeout=REQUEST_TIMEOUT,
             ) as stream:
                 yield from stream.text_stream
+                # Расход токенов доступен после завершения стрима (best-effort).
+                get_final = getattr(stream, "get_final_message", None)
+                if get_final is not None:
+                    _log_usage(get_final(), "stream")
         except Exception as exc:  # noqa: BLE001 — деградация, не падение вью
             logger.warning("assistant stream failed: %s", exc)
 
