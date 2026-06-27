@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from dataclasses import dataclass
 
 from django.db import transaction
@@ -9,6 +10,8 @@ from ingestion.fetching import fetch
 from ingestion.links import extract_links_for_redaction
 from ingestion.models import IngestionJob, RawSource
 from ingestion.parsing import PARSER_VERSION, html_to_text, parse_document, parse_text
+
+logger = logging.getLogger(__name__)
 
 # Минимальная доля статей новой редакции от текущей при авто-публикации.
 # Резкое падение = вероятно обрезанный/ошибочный ответ источника — не публикуем.
@@ -199,6 +202,11 @@ def ingest_target(target, *, client=None):
             log_lines.append(f"Предложено связей: {n_links}.")
         except Exception as link_exc:  # извлечение связей вторично — не валит приём
             log_lines.append(f"Извлечение связей не удалось: {link_exc}")
+            logger.warning(
+                "ingest_target: извлечение связей упало для редакции #%s",
+                redaction.pk,
+                exc_info=True,
+            )
         # авто-публикация (§17): только при флаге, извлечённой дате и пройденном гейте
         if target.document.auto_publish:
             if parsed.detected_redaction_date is None:
@@ -215,10 +223,20 @@ def ingest_target(target, *, client=None):
                     extract_links_for_redaction(redaction)  # после публикации: самоссылки
                 except Exception as link_exc:
                     log_lines.append(f"Переизвлечение связей не удалось: {link_exc}")
+                    logger.warning(
+                        "ingest_target: переизвлечение связей упало для редакции #%s",
+                        redaction.pk,
+                        exc_info=True,
+                    )
     except Exception as exc:  # изоляция: сбой одной цели не валит пакет
         job.status = IngestionJob.Status.FAILED
         job.error = f"{type(exc).__name__}: {exc}"
         log_lines.append("ОШИБКА — см. поле error.")
+        logger.warning(
+            "ingest_target: сбой приёма target_key=%s",
+            target.target_key,
+            exc_info=True,
+        )
     return _finish(job, log_lines)
 
 
@@ -233,10 +251,12 @@ def import_manual(
     )
     try:
         extract_links_for_redaction(redaction)
-    except (
-        Exception
-    ):  # извлечение связей вторично: черновик сохранён, связи можно переизвлечь командой
-        pass
+    except Exception:  # извлечение связей вторично: черновик сохранён, переизвлекаемо командой
+        logger.warning(
+            "import_manual: извлечение связей упало для редакции #%s",
+            redaction.pk,
+            exc_info=True,
+        )
     return redaction
 
 

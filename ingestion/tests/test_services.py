@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, timezone
 
 import httpx
@@ -172,6 +173,33 @@ def test_import_manual_extracts_suggested_links():
     content = "Статья 1. Сфера\nПрименяется вместе с 125-ФЗ.".encode("utf-8")
     import_manual(src, content=content, content_type="text/plain")
     assert Link.objects.filter(from_document=src, status=Link.Status.SUGGESTED).exists()
+
+
+@pytest.mark.django_db
+def test_import_manual_logs_when_link_extraction_fails(monkeypatch, caplog):
+    # Сбой извлечения связей вторичен: черновик сохраняется (деградация), но
+    # ошибка больше не проглатывается молча — пишется в лог с трейсбеком.
+    import ingestion.services as svc
+
+    def boom(_redaction):
+        raise RuntimeError("link boom")
+
+    monkeypatch.setattr(svc, "extract_links_for_redaction", boom)
+    doc = make_document(slug="man-fail", official_number="mf")
+    content = "Статья 1. Общие положения\nТекст акта.".encode("utf-8")
+
+    # Логгер ingestion настроен с propagate=False — подключаем caplog напрямую.
+    svc_logger = logging.getLogger("ingestion.services")
+    svc_logger.addHandler(caplog.handler)
+    svc_logger.setLevel(logging.WARNING)
+    try:
+        red = import_manual(doc, content=content, content_type="text/plain")
+    finally:
+        svc_logger.removeHandler(caplog.handler)
+
+    assert red.review_status == Redaction.ReviewStatus.DRAFT  # черновик создан
+    assert "import_manual" in caplog.text
+    assert "link boom" in caplog.text  # трейсбек исходной ошибки
 
 
 @pytest.mark.django_db

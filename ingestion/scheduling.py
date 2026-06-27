@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 import httpx
@@ -6,6 +7,8 @@ from documents.models import Document
 from ingestion.fetching import DEFAULT_TIMEOUT, MAX_RETRIES
 from ingestion.models import IngestionJob
 from ingestion.services import IngestionTarget, ingest_target
+
+logger = logging.getLogger(__name__)
 
 
 def iter_targets():
@@ -70,6 +73,11 @@ def sweep_targets(*, client=None) -> SweepSummary:
                 job = ingest_target(target, client=client)
                 field = _STATUS_FIELD.get(job.status, "failed")
             except Exception:  # намеренная сетка: один сбойный документ не должен оборвать обход
+                logger.warning(
+                    "sweep: сбой приёма цели target_key=%s",
+                    target.target_key,
+                    exc_info=True,
+                )
                 field = "failed"
             setattr(summary, field, getattr(summary, field) + 1)
     finally:
