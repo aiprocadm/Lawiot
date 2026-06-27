@@ -105,6 +105,7 @@ def extract_links_for_redaction(redaction):
     text = "\n".join(parts)
 
     citations = find_citations(text)
+    named_citations = find_named_citations(text)
 
     # сбросить прежние авто-предложения этого документа (подтверждённые не трогаем)
     Link.objects.filter(
@@ -113,32 +114,51 @@ def extract_links_for_redaction(redaction):
         status=Link.Status.SUGGESTED,
     ).delete()
 
-    created = 0
-    for citation in citations:
-        target = (
-            Document.objects.filter(official_number=citation.number)
-            .exclude(pk=document.pk)  # не ссылаемся на самих себя
+    # Предзагрузка целей одним запросом вместо .first() на каждую цитату (N+1).
+    # Порядок по Document.Meta.ordering (title) сохраняет семантику .first():
+    # для совпадающих номеров берём первый по title.
+    numbers = {c.number for c in citations}
+    targets_by_number = {}
+    if numbers:
+        for doc in Document.objects.filter(official_number__in=numbers).exclude(pk=document.pk):
+            targets_by_number.setdefault(doc.official_number, doc)
+
+    # Цели именных цитат: по одному запросу на различимый кодекс (их единицы),
+    # а не на каждую цитату.
+    targets_by_name = {}
+    for name in {c.name for c in named_citations}:
+        targets_by_name[name] = (
+            Document.objects.filter(**_CODEX_TITLE_FILTERS[name])
+            .exclude(pk=document.pk)
             .first()
         )
+
+    # Снимок выживших связей для дедупа в памяти (вместо .exists() на цитату).
+    # Множества обновляются по ходу — так дедуп ловит и связи, созданные в этом
+    # же прогоне (например, номерная + именная цитата одной цели → одна связь).
+    surviving = Link.objects.filter(from_document=document)
+    linked_target_ids = set(
+        surviving.filter(link_type=Link.LinkType.REFERENCES, to_document__isnull=False)
+        .values_list("to_document_id", flat=True)
+    )
+    linked_raw = set(
+        surviving.exclude(raw_citation="").values_list("raw_citation", flat=True)
+    )
+
+    created = 0
+    for citation in citations:
+        target = targets_by_number.get(citation.number)
         if target is not None:
-            already = Link.objects.filter(
-                from_document=document,
-                to_document=target,
-                link_type=Link.LinkType.REFERENCES,
-            ).exists()
-            if already:
+            if target.pk in linked_target_ids:
                 continue
             _create_reference_link(document, target, citation.context)
+            linked_target_ids.add(target.pk)
         else:
             if citation.number == document.official_number:
                 continue  # самоцитата без внешней цели
             # raw_citation = сам номер (точный дедуп; «25-ФЗ» не путать со «125-ФЗ»),
             # а человекочитаемый фрагмент кладём в context (спека §5).
-            already = Link.objects.filter(
-                from_document=document,
-                raw_citation=citation.number,
-            ).exists()
-            if already:
+            if citation.number in linked_raw:
                 continue
             Link.objects.create(
                 from_document=document,
@@ -148,24 +168,17 @@ def extract_links_for_redaction(redaction):
                 status=Link.Status.SUGGESTED,
                 context=citation.context,
             )
+            linked_raw.add(citation.number)
         created += 1
 
     # Именные цитаты кодексов: резолвим по Document.title, только если кодекс в корпусе.
-    for citation in find_named_citations(text):
-        target = (
-            Document.objects.filter(**_CODEX_TITLE_FILTERS[citation.name])
-            .exclude(pk=document.pk)  # не ссылаемся на самих себя
-            .first()
-        )
+    for citation in named_citations:
+        target = targets_by_name.get(citation.name)
         if target is None:
             continue  # кодекса нет в корпусе → связь не создаём
-        already = Link.objects.filter(
-            from_document=document,
-            to_document=target,
-            link_type=Link.LinkType.REFERENCES,
-        ).exists()
-        if already:
+        if target.pk in linked_target_ids:
             continue  # дедуп: номерная цитата уже создала связь к этой цели
         _create_reference_link(document, target, citation.context)
+        linked_target_ids.add(target.pk)
         created += 1
     return created

@@ -116,6 +116,26 @@ def test_reextraction_preserves_and_does_not_duplicate_confirmed():
     assert links.first().status == Link.Status.CONFIRMED  # подтверждение сохранено
 
 
+@pytest.mark.django_db
+def test_extraction_does_not_scale_selects_per_citation(django_assert_max_num_queries):
+    """Раньше на каждую цитату шёл отдельный SELECT цели + проверка дубля (N+1).
+    При множестве цитат запросы-выборки должны оставаться ограниченными
+    (вставки новых связей неизбежно линейны — их не считаем проблемой)."""
+    src = make_document(slug="bulk-src", official_number="999-ФЗ")
+    numbers = [f"{n}-ФЗ" for n in range(201, 213)]  # 12 целей в корпусе
+    for i, num in enumerate(numbers):
+        make_document(slug=f"bulk-tgt-{i}", official_number=num)
+    text = "Применяются " + ", ".join(numbers) + "."
+    red = make_redaction(src, full_text=text)
+
+    # 12 вставок + горстка выборок. До фикса было бы ~38 запросов.
+    with django_assert_max_num_queries(20):
+        n = extract_links_for_redaction(red)
+
+    assert n == 12
+    assert Link.objects.filter(from_document=src, to_document__isnull=False).count() == 12
+
+
 def test_finds_codex_by_name_all_cases():
     text = "регулируется Трудовым кодексом и Трудового кодекса, см. Трудовой кодекс."
     names = {c.name for c in find_named_citations(text)}
