@@ -14,7 +14,7 @@ class ArticleDiff:
     )  # list[tuple[str, str]]: (tag, text), tag ∈ {"+","-"," "}
 
 
-def _line_diff(old_text, new_text):
+def _line_diff(old_text, new_text) -> list[tuple[str, str]]:
     old = (old_text or "").splitlines()
     new = (new_text or "").splitlines()
     out = []
@@ -25,7 +25,7 @@ def _line_diff(old_text, new_text):
     return out
 
 
-def diff_articles(current_articles, draft_articles):
+def diff_articles(current_articles, draft_articles) -> list[ArticleDiff]:
     """Выравнивание по `number`. Порядок результата — статьи черновика, затем удалённые."""
     current_by_num = {a.number: a for a in current_articles}
     draft_nums = {a.number for a in draft_articles}

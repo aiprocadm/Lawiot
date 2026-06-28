@@ -5,13 +5,6 @@ from documents.tests.factories import make_document
 from notes.models import Note
 
 
-@pytest.fixture
-def auth(client, django_user_model):
-    user = django_user_model.objects.create_user("r", password="p12345678")
-    client.force_login(user)
-    return user, client
-
-
 @pytest.mark.django_db
 def test_notes_requires_login(client):
     resp = client.get(reverse("note_list"))
