@@ -5,13 +5,6 @@ from bookmarks.models import Bookmark
 from documents.tests.factories import make_document, make_redaction
 
 
-@pytest.fixture
-def auth(client, django_user_model):
-    user = django_user_model.objects.create_user("r", password="p12345678")
-    client.force_login(user)
-    return user, client
-
-
 @pytest.mark.django_db
 def test_bookmark_list_requires_login(client):
     resp = client.get(reverse("bookmark_list"))

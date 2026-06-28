@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 
 from documents.models import Document
-from ingestion.fetching import new_client
+from ingestion.fetching import managed_client
 from ingestion.models import IngestionJob
 from ingestion.services import IngestionTarget, ingest_target
 
@@ -52,9 +52,7 @@ def sweep_targets(*, client=None) -> SweepSummary:
     весь обход. Возвращает агрегированную сводку.
     """
     summary = SweepSummary()
-    owns_client = client is None
-    client = client or new_client()
-    try:
+    with managed_client(client) as client:
         for target in iter_targets():
             summary.total += 1
             try:
@@ -68,9 +66,6 @@ def sweep_targets(*, client=None) -> SweepSummary:
                 )
                 field = "failed"
             setattr(summary, field, getattr(summary, field) + 1)
-    finally:
-        if owns_client:
-            client.close()
     return summary
 
 

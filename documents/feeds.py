@@ -28,7 +28,7 @@ class ChangesFeed(Feed):
     subtitle = "Недавно опубликованные редакции актов трудового права."
     author_name = "Lawiot"
 
-    def items(self):
+    def items(self) -> list[Redaction]:
         published = Redaction.objects.filter(review_status=Redaction.ReviewStatus.PUBLISHED)
         feed = list(
             published.select_related("document").order_by(
@@ -53,10 +53,10 @@ class ChangesFeed(Feed):
             )
         return feed
 
-    def item_title(self, item):
+    def item_title(self, item: Redaction) -> str:
         return f"{item.document.title} — редакция от {item.redaction_date:%d.%m.%Y}"
 
-    def item_description(self, item):
+    def item_description(self, item: Redaction) -> str:
         parts = [f"Действует с {item.redaction_date:%d.%m.%Y}."]
         if item.published_at:
             parts.append(f"Опубликовано {item.published_at:%d.%m.%Y}.")
@@ -64,7 +64,7 @@ class ChangesFeed(Feed):
             parts.append("Доступно сравнение с предыдущей редакцией.")
         return " ".join(parts)
 
-    def item_link(self, item):
+    def item_link(self, item: Redaction) -> str:
         # При наличии предыдущей редакции ведём сразу на diff «что изменилось»,
         # иначе — на сам документ.
         if item.prev_pk:
@@ -75,11 +75,11 @@ class ChangesFeed(Feed):
     # редакции совпадал бы у записей одного документа).
     item_guid_is_permalink = False
 
-    def item_guid(self, item):
+    def item_guid(self, item: Redaction) -> str:
         return f"redaction-{item.pk}"
 
-    def item_pubdate(self, item):
+    def item_pubdate(self, item: Redaction):
         return item.published_at
 
-    def item_updateddate(self, item):
+    def item_updateddate(self, item: Redaction):
         return item.published_at

@@ -15,13 +15,54 @@ from search.services import search_in_document
 PAGE_SIZE = 20
 
 
-@login_required
-def document_list(request):
-    current = Redaction.objects.filter(
-        document=OuterRef("pk"),
-        is_current=True,
+def _current_published_or_404(document):
+    """Текущая опубликованная редакция акта или Http404.
+
+    Единственная точка, где «нет видимого читателю текста» превращается в 404 —
+    раньше тот же блок дублировался в каждой публичной вьюхе акта.
+    """
+    redaction = document.redactions.current_published().first()
+    if redaction is None:
+        raise Http404("Нет опубликованной редакции")
+    return redaction
+
+
+def _diff_pair_or_404(document, from_pk):
+    """Пара (older, current) опубликованных редакций для diff читателя.
+
+    current — текущая опубликованная; older — опубликованная редакция `from_pk`
+    того же акта. 404, если older отсутствует либо уже совпадает с текущей.
+    """
+    current = _current_published_or_404(document)
+    older = get_object_or_404(
+        Redaction,
+        pk=from_pk,
+        document=document,
         review_status=Redaction.ReviewStatus.PUBLISHED,
     )
+    if older.pk == current.pk:
+        raise Http404("Редакция уже текущая — сравнивать не с чем")
+    return older, current
+
+
+def _build_article_tree(articles):
+    """Проставить `child_nodes` каждой статье и вернуть корни (parent=None).
+
+    Шаблон рендерит дерево рекурсивно; собираем связи одним проходом без
+    доп. запросов к БД (articles уже выбраны списком).
+    """
+    children_map = defaultdict(list)
+    for a in articles:
+        children_map[a.parent_id].append(a)
+    for a in articles:
+        a.child_nodes = children_map[a.id]
+    return children_map[None]
+
+
+@login_required
+def document_list(request):
+    """Список актов с текущей опубликованной редакцией (с пагинацией)."""
+    current = Redaction.objects.filter(document=OuterRef("pk")).current_published()
     documents = Document.objects.filter(Exists(current)).order_by("title")
     page_obj = Paginator(documents, PAGE_SIZE).get_page(request.GET.get("page"))
 
@@ -43,20 +84,12 @@ def document_list(request):
 
 @login_required
 def document_detail(request, slug):
+    """Страница-ридер акта: дерево статей, панели связей, кнопки AI."""
     document = get_object_or_404(Document, slug=slug)
-    redaction = document.redactions.filter(
-        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-    ).first()
-    if redaction is None:
-        raise Http404("Нет опубликованной редакции")
+    redaction = _current_published_or_404(document)
 
     articles = list(redaction.articles.all())
-    children_map = defaultdict(list)
-    for a in articles:
-        children_map[a.parent_id].append(a)
-    for a in articles:
-        a.child_nodes = children_map[a.id]
-    article_tree = children_map[None]
+    article_tree = _build_article_tree(articles)
     kind_counts = Counter(a.kind for a in articles)
     # Якоря статей этого акта — для внутренних гиперссылок «ст. N» в тексте.
     anchors = {a.anchor for a in articles if a.anchor}
@@ -75,9 +108,7 @@ def document_detail(request, slug):
     incoming = document.incoming_links.filter(status__in=visible_statuses).select_related(
         "from_document"
     )
-    published_redactions = document.redactions.filter(
-        review_status=Redaction.ReviewStatus.PUBLISHED
-    )
+    published_redactions = document.redactions.published()
 
     return render(
         request,
@@ -112,11 +143,7 @@ def article_explain(request, slug, anchor):
     from assistant.article_explain import explain_article
 
     document = get_object_or_404(Document, slug=slug)
-    redaction = document.redactions.filter(
-        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-    ).first()
-    if redaction is None:
-        raise Http404("Нет опубликованной редакции")
+    redaction = _current_published_or_404(document)
     article = get_object_or_404(Article, redaction=redaction, anchor=anchor)
     explanation = explain_article(article.text)
     return render(
@@ -142,7 +169,7 @@ def document_search(request, slug):
 @login_required
 def changes_feed(request):
     """Лента изменений: недавно опубликованные редакции, новые сверху."""
-    published = Redaction.objects.filter(review_status=Redaction.ReviewStatus.PUBLISHED)
+    published = Redaction.objects.published()
     feed = published.select_related("document").order_by(
         F("published_at").desc(nulls_last=True), "-redaction_date"
     )
@@ -175,19 +202,7 @@ def changes_feed(request):
 def redaction_diff(request, slug, from_pk):
     """Изменения «прошлая редакция → текущая» для читателя. Read-only."""
     document = get_object_or_404(Document, slug=slug)
-    current = document.redactions.filter(
-        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-    ).first()
-    if current is None:
-        raise Http404("Нет опубликованной редакции")
-    older = get_object_or_404(
-        Redaction,
-        pk=from_pk,
-        document=document,
-        review_status=Redaction.ReviewStatus.PUBLISHED,
-    )
-    if older.pk == current.pk:
-        raise Http404("Редакция уже текущая — сравнивать не с чем")
+    older, current = _diff_pair_or_404(document, from_pk)
     # diff_articles(база, новая): older — база, current — «новая»; имена параметров
     # функции (current_articles/draft_articles) — из admin-сценария, НЕ менять порядок.
     diffs = [
@@ -212,19 +227,7 @@ def redaction_diff_explain(request, slug, from_pk):
     from assistant.diff_explain import explain_diff
 
     document = get_object_or_404(Document, slug=slug)
-    current = document.redactions.filter(
-        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-    ).first()
-    if current is None:
-        raise Http404("Нет опубликованной редакции")
-    older = get_object_or_404(
-        Redaction,
-        pk=from_pk,
-        document=document,
-        review_status=Redaction.ReviewStatus.PUBLISHED,
-    )
-    if older.pk == current.pk:
-        raise Http404("Редакция уже текущая — сравнивать не с чем")
+    older, current = _diff_pair_or_404(document, from_pk)
 
     older_by_num = {a.number: a for a in older.articles.all()}
     newer_by_num = {a.number: a for a in current.articles.all()}
@@ -250,19 +253,10 @@ def redaction_diff_explain(request, slug, from_pk):
 def document_print(request, slug):
     """Версия для печати: чистая standalone-страница с полным текстом акта."""
     document = get_object_or_404(Document, slug=slug)
-    redaction = document.redactions.filter(
-        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-    ).first()
-    if redaction is None:
-        raise Http404("Нет опубликованной редакции")
+    redaction = _current_published_or_404(document)
 
     articles = list(redaction.articles.all())
-    children_map = defaultdict(list)
-    for a in articles:
-        children_map[a.parent_id].append(a)
-    for a in articles:
-        a.child_nodes = children_map[a.id]
-    article_tree = children_map[None]
+    article_tree = _build_article_tree(articles)
     # Якоря статей этого акта — _article_node.html линкует «ст. N» в тексте.
     anchors = {a.anchor for a in articles if a.anchor}
 
@@ -313,11 +307,7 @@ def document_export_docx(request, slug):
     from docx import Document as DocxDocument
 
     document = get_object_or_404(Document, slug=slug)
-    redaction = document.redactions.filter(
-        is_current=True, review_status=Redaction.ReviewStatus.PUBLISHED
-    ).first()
-    if redaction is None:
-        raise Http404("Нет опубликованной редакции")
+    redaction = _current_published_or_404(document)
 
     docx = DocxDocument()
     docx.add_heading(document.title, level=0)

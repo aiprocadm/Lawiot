@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -36,13 +38,28 @@ def new_client() -> httpx.Client:
     )
 
 
+@contextmanager
+def managed_client(client: httpx.Client | None = None) -> Iterator[httpx.Client]:
+    """Отдать httpx-клиент с корректным владением жизненным циклом.
+
+    Передан `client` — отдаём как есть (закрывает вызывающий). Нет — создаём через
+    `new_client()` и закрываем на выходе. Один источник для правила, вместо
+    повтора owns_client/`finally` в fetch/iter_documents/resolve_nd/sweep_targets.
+    """
+    owns_client = client is None
+    if owns_client:
+        client = new_client()
+    try:
+        yield client
+    finally:
+        if owns_client:
+            client.close()
+
+
 def fetch(url: str, *, client: httpx.Client | None = None) -> FetchResult:
     """Вежливо скачать URL. Сетевой эффект изолирован здесь, чтобы разбор оставался чистым.
     В тестах передаётся `client` с `httpx.MockTransport` — живая сеть не нужна."""
-    owns_client = client is None
-    if client is None:
-        client = new_client()
-    try:
+    with managed_client(client) as client:
         response = client.get(url, headers={"User-Agent": USER_AGENT})
         response.raise_for_status()
         return FetchResult(
@@ -51,6 +68,3 @@ def fetch(url: str, *, client: httpx.Client | None = None) -> FetchResult:
             source_url=str(response.url),
             fetched_at=datetime.now(timezone.utc),
         )
-    finally:
-        if owns_client:
-            client.close()
