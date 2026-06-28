@@ -144,7 +144,15 @@ def article_explain(request, slug, anchor):
 
     document = get_object_or_404(Document, slug=slug)
     redaction = _current_published_or_404(document)
-    article = get_object_or_404(Article, redaction=redaction, anchor=anchor)
+    # Корпус может содержать дубли (redaction, anchor) — дефект парсинга: статьи
+    # со «сдвинутым» номером (напр. 341.1×5 вместо 341.1–341.5) делят один якорь.
+    # get_object_or_404 на таком якоре падал MultipleObjectsReturned → HTTP 500.
+    # Берём каноничную статью (первую по order — это и есть искомый номер).
+    article = (
+        Article.objects.filter(redaction=redaction, anchor=anchor).order_by("order").first()
+    )
+    if article is None:
+        raise Http404("Статья не найдена")
     explanation = explain_article(article.text)
     return render(
         request,

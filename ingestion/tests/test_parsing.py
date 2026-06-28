@@ -63,6 +63,21 @@ def test_parse_articles_handles_decimal_numbers():
     assert arts[0].title == "Дистанционная работа"
 
 
+def test_parse_articles_handles_hyphenated_numbers():
+    # ГК РФ (личный фонд) и ТК РФ (заёмный труд) реально нумеруют статьи через
+    # дефис: «Статья 123.20-1», «Статья 341.1-1». Без суффикса в ARTICLE_RE все
+    # они схлопывались в один номер «123.20»/«341.1» (дефект: дубли якорей → 500).
+    text = (
+        "Статья 123.20. Личный фонд\nбаза\n"
+        "Статья 123.20-1. Основные положения о личном фонде\nтекст один\n"
+        "Статья 123.20-2. Условия управления\nтекст два"
+    )
+    arts = parse_articles(text)
+    assert [a.number for a in arts] == ["123.20", "123.20-1", "123.20-2"]
+    assert arts[1].title == "Основные положения о личном фонде"
+    assert arts[1].text == "текст один"
+
+
 def test_parse_document_on_html_fixture():
     content = (FIXTURES / "sample_tk.html").read_bytes()
     parsed = parse_document(content, "text/html")

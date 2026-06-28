@@ -36,12 +36,29 @@ def _sanitize(text):
     return _TAG_RE.sub("", text or "")
 
 
+# Жёсткий потолок на длину ОДНОГО текстового фрагмента, уходящего в модель
+# (текст статьи, «до/после» в diff). Без него патологически длинная статья
+# раздувала бы счёт токенов/стоимость и могла упереться в лимит контекста.
+# ~12000 символов ≈ несколько тысяч токенов — с запасом для самой длинной
+# реальной статьи корпуса (макс ≈ 8500 символов).
+MAX_INPUT_CHARS = 12000
+_TRUNCATION_MARK = "\n…[текст сокращён]"
+
+
+def cap_text(text):
+    """Обрезать слишком длинный фрагмент, пометив усечение (видно и модели)."""
+    text = text or ""
+    if len(text) <= MAX_INPUT_CHARS:
+        return text
+    return text[:MAX_INPUT_CHARS] + _TRUNCATION_MARK
+
+
 def build_user_content(question, articles):
     """Собирает пользовательское сообщение: статьи + вопрос в тегах-разделителях."""
     blocks = []
     for i, a in enumerate(articles, 1):
         label = a.article_label or "Статья"
-        blocks.append(f"[{i}] {a.document_title} — {label}\n{a.text}")
+        blocks.append(f"[{i}] {a.document_title} — {label}\n{cap_text(a.text)}")
     context = _sanitize("\n\n".join(blocks))
     safe_question = _sanitize(question)
     return (
