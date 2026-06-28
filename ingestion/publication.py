@@ -7,6 +7,9 @@ import httpx
 
 from ingestion.fetching import managed_client
 
+# ВНИМАНИЕ: http (не https) — намеренно. Портал не обслуживает TLS: проверено
+# 2026-06-29 (http → 200, https → отказ соединения). Менять на https нельзя —
+# сломается ингест. См. также IPS_BASE в ingestion/ips_resolve.py.
 PUBLICATION_BASE = "http://publication.pravo.gov.ru"
 # Федеральный Минтруд (signatoryAuthorityId портала опубликования).
 FEDERAL_MINTRUD_ID = "2c4929b0-9323-4541-9705-76185b9e284b"

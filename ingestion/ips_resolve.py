@@ -5,6 +5,8 @@ import httpx
 
 from ingestion.fetching import managed_client
 
+# http (не https) намеренно: pravo.gov.ru не обслуживает TLS (проверено
+# 2026-06-29: http → 200, https → отказ соединения). https сломал бы ингест.
 IPS_BASE = "http://pravo.gov.ru/proxy/ips/"
 _ND_RE = re.compile(r"nd=(\d+)")
 # ИПС-поиск обрезает длинные запросы; наблюдаемый практический предел — 120 символов.
