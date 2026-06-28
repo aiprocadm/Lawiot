@@ -1,5 +1,19 @@
 # Lawiot
 
+## Первичная настройка (свежий checkout / worktree)
+
+На чистой машине нет `.venv` и `.env` (оба в `.gitignore`), поэтому проект не
+запустится. Разовая подготовка — одной командой:
+
+```powershell
+.\bootstrap.ps1
+```
+
+Скрипт идемпотентно: находит Python 3.13 (проект закреплён на py313 — под него
+есть wheels torch/sentence-transformers), создаёт `.venv`, ставит
+`requirements.txt` и создаёт `.env` из `.env.example`. Пересоздать окружение с
+нуля: `.\bootstrap.ps1 -Recreate`.
+
 ## Запуск тестов локально
 
 Тесты используют Postgres (см. `DATABASE_URL` в `.env` → `localhost:5433`,

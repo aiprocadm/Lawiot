@@ -3,6 +3,7 @@
 
 from django.contrib import messages
 from django.contrib.admin import site as admin_site
+from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 
 from documents.diffing import diff_articles
@@ -51,7 +52,9 @@ def review_queue_view(request):
     drafts = (
         Redaction.objects.filter(review_status=Redaction.ReviewStatus.DRAFT)
         .select_related("document")
-        .order_by("-ingested_at")
+        # nulls_last: ручной импорт может не иметь ingested_at; иначе в Postgres
+        # NULL при DESC всплывает наверх и путает хронологию очереди (как в changes_feed).
+        .order_by(F("ingested_at").desc(nulls_last=True), "-id")
     )
     failed = IngestionJob.objects.filter(status=IngestionJob.Status.FAILED).order_by("-started_at")[
         :50
