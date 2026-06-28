@@ -110,7 +110,7 @@ def answer_question(question, *, document=None, history=None, client=None):
             timeout=REQUEST_TIMEOUT,
         )
     except Exception as exc:  # noqa: BLE001 — любая ошибка API → деградация, не падение
-        logger.warning("assistant synthesis failed: %s", exc)
+        logger.warning("assistant synthesis failed: %s", exc, exc_info=True)
         return AssistantAnswer(
             question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error=str(exc)
         )
@@ -181,7 +181,7 @@ def stream_answer(question, *, document=None, history=None, client=None):
                 if get_final is not None:
                     _log_usage(get_final(), "stream")
         except Exception as exc:  # noqa: BLE001 — деградация, не падение вью
-            logger.warning("assistant stream failed: %s", exc)
+            logger.warning("assistant stream failed: %s", exc, exc_info=True)
 
     return articles, _deltas()
 

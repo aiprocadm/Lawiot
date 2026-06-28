@@ -5,7 +5,7 @@ from datetime import date, datetime
 
 import httpx
 
-from ingestion.fetching import DEFAULT_TIMEOUT, MAX_RETRIES, USER_AGENT
+from ingestion.fetching import new_client
 
 PUBLICATION_BASE = "http://publication.pravo.gov.ru"
 # Федеральный Минтруд (signatoryAuthorityId портала опубликования).
@@ -71,15 +71,6 @@ def parse_item(item: dict) -> PublicationDoc:
     )
 
 
-def _new_client() -> httpx.Client:
-    return httpx.Client(
-        timeout=DEFAULT_TIMEOUT,
-        transport=httpx.HTTPTransport(retries=MAX_RETRIES),
-        follow_redirects=True,
-        headers={"User-Agent": USER_AGENT},
-    )
-
-
 def iter_documents(
     authority_id: str,
     *,
@@ -94,7 +85,7 @@ def iter_documents(
     Сеть изолирована здесь; в тестах передаётся client с httpx.MockTransport.
     """
     owns_client = client is None
-    client = client or _new_client()
+    client = client or new_client()
     try:
         index = 1
         while True:

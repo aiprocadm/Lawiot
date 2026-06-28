@@ -7,13 +7,6 @@ from documents.tests.factories import make_article, make_document, make_redactio
 
 
 @pytest.fixture
-def auth_client(client, django_user_model):
-    user = django_user_model.objects.create_user("reader", password="pass12345")
-    client.force_login(user)
-    return client
-
-
-@pytest.fixture
 def two_redactions(db):
     """Акт с двумя опубликованными редакциями: старая (не текущая) и текущая."""
     doc = make_document(slug="tk", title="ТК", official_number="197-ФЗ")

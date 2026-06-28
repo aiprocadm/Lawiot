@@ -70,7 +70,7 @@ def explain_article(article_text, *, client=None):
             timeout=REQUEST_TIMEOUT,
         )
     except Exception as exc:  # noqa: BLE001 — любая ошибка API → деградация, не падение
-        logger.warning("article explanation failed: %s", exc)
+        logger.warning("article explanation failed: %s", exc, exc_info=True)
         return ArticleExplanation(mode=MODE_UNAVAILABLE, error=str(exc))
 
     _log_usage(resp, "article")

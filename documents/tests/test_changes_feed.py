@@ -13,13 +13,6 @@ from documents.models import Redaction
 from documents.tests.factories import make_document, make_redaction
 
 
-@pytest.fixture
-def auth_client(client, django_user_model):
-    user = django_user_model.objects.create_user("reader", password="pass12345")
-    client.force_login(user)
-    return client
-
-
 @pytest.mark.django_db
 def test_publish_sets_published_at():
     red = make_redaction()

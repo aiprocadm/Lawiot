@@ -6,13 +6,6 @@ from documents.tests.factories import make_article, make_document, make_redactio
 from search import views as search_views
 
 
-@pytest.fixture
-def auth_client(client, django_user_model):
-    user = django_user_model.objects.create_user("reader", password="pass12345")
-    client.force_login(user)
-    return client
-
-
 @pytest.mark.django_db
 def test_search_requires_login(client):
     response = client.get(reverse("search"))

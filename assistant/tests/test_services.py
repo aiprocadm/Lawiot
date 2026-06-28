@@ -94,6 +94,26 @@ def test_api_error_falls_back(published_doc):
 
 
 @pytest.mark.django_db
+def test_api_error_logs_traceback(published_doc, caplog):
+    import logging
+
+    # Логгер "assistant" имеет propagate=False, поэтому handler caplog (на root)
+    # его не видит — цепляем напрямую к нему.
+    assistant_logger = logging.getLogger("assistant")
+    assistant_logger.addHandler(caplog.handler)
+    try:
+        client = _FakeClient(exc=RuntimeError("boom"))
+        with caplog.at_level(logging.WARNING, logger="assistant"):
+            answer_question("отпуск увольнение компенсация", client=client)
+    finally:
+        assistant_logger.removeHandler(caplog.handler)
+
+    failures = [r for r in caplog.records if "synthesis failed" in r.getMessage()]
+    assert failures, "ожидали запись лога о сбое синтеза"
+    assert failures[0].exc_info is not None, "лог сбоя API должен содержать трейсбэк"
+
+
+@pytest.mark.django_db
 def test_refusal_falls_back(published_doc):
     client = _FakeClient(resp=_FakeResp("", stop_reason="refusal"))
     ans = answer_question("отпуск увольнение компенсация", client=client)
