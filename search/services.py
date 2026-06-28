@@ -97,7 +97,7 @@ def search_documents(
     issuing_body="",
     date_from=None,
     date_to=None,
-):
+) -> list[SearchResult]:
     query_text = (query_text or "").strip()
     if not query_text:
         return []
@@ -269,7 +269,7 @@ def _semantic_supplement(query_text, fts_results, **filters):
     return fts_results + extras
 
 
-def search_in_document(document, query_text, *, limit=50):
+def search_in_document(document, query_text, *, limit=50) -> list[ArticleHit]:
     """Поиск статей В ПРЕДЕЛАХ одного акта (текущая опубликованная редакция).
 
     Без схлопывания по документу (в отличие от search_documents): возвращает все

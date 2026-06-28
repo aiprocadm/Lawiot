@@ -81,6 +81,23 @@ class Document(models.Model):
         return self.title
 
 
+class RedactionQuerySet(models.QuerySet):
+    """Семантические фильтры по жизненному циклу редакции.
+
+    Цепляемые методы вместо россыпи `filter(is_current=True, review_status=…)`
+    по вьюхам и сервисам: правило «что считать опубликованным/текущим» живёт
+    в одном месте.
+    """
+
+    def published(self):
+        return self.filter(review_status=self.model.ReviewStatus.PUBLISHED)
+
+    def current_published(self):
+        return self.filter(
+            is_current=True, review_status=self.model.ReviewStatus.PUBLISHED
+        )
+
+
 class Redaction(models.Model):
     class ReviewStatus(models.TextChoices):
         DRAFT = "draft", "Черновик"
@@ -122,6 +139,8 @@ class Redaction(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     search_vector = SearchVectorField(null=True, editable=False)
+
+    objects = RedactionQuerySet.as_manager()
 
     class Meta:
         ordering = ["-redaction_date"]

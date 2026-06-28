@@ -46,6 +46,15 @@ def _log_usage(message, where):
         getattr(usage, "output_tokens", "?"),
     )
 
+
+def _response_text(resp) -> str:
+    """Склеить текстовые блоки ответа Messages API (thinking-блоки пропускаются).
+
+    Знание о форме ответа (content — список блоков с .type/.text) живёт здесь, а
+    не растиражировано по трём фичам ассистента."""
+    return "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+
+
 MODE_SYNTHESIZED = "synthesized"
 MODE_RETRIEVAL_ONLY = "retrieval_only"
 MODE_NO_RESULTS = "no_results"
@@ -122,21 +131,9 @@ def answer_question(question, *, document=None, history=None, client=None):
             question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error="refusal"
         )
 
-    text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
-    # Пустой ответ (напр. бюджет съело мышление → stop_reason=max_tokens) →
-    # не показываем пустой «синтез», откатываемся к статьям.
-    if not text:
-        return AssistantAnswer(
-            question=question, articles=articles, mode=MODE_RETRIEVAL_ONLY, error="empty"
-        )
-
-    return AssistantAnswer(
-        question=question,
-        articles=articles,
-        answer_text=text,
-        mode=MODE_SYNTHESIZED,
-        unverified_citations=unverified_citations(text, articles),
-    )
+    # Хвост (пустой ответ → откат к статьям, иначе synthesized + проверка цитат)
+    # идентичен пути стрима — считаем его в одном месте.
+    return finalize_answer(question, articles, _response_text(resp))
 
 
 def stream_answer(question, *, document=None, history=None, client=None):

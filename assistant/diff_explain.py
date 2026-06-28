@@ -20,6 +20,7 @@ from assistant.services import (
     REQUEST_TIMEOUT,
     _default_client,
     _log_usage,
+    _response_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -100,9 +101,7 @@ def explain_diff(changes, *, client=None):
     if getattr(resp, "stop_reason", None) == "refusal":
         return DiffExplanation(mode=MODE_UNAVAILABLE, error="refusal")
 
-    text = "".join(
-        b.text for b in resp.content if getattr(b, "type", None) == "text"
-    ).strip()
+    text = _response_text(resp)
     if not text:
         return DiffExplanation(mode=MODE_UNAVAILABLE, error="empty")
 
