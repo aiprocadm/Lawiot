@@ -5,7 +5,7 @@ from datetime import date, datetime
 
 import httpx
 
-from ingestion.fetching import new_client
+from ingestion.fetching import managed_client
 
 PUBLICATION_BASE = "http://publication.pravo.gov.ru"
 # Федеральный Минтруд (signatoryAuthorityId портала опубликования).
@@ -84,9 +84,7 @@ def iter_documents(
     (портал отдаёт по убыванию даты публикации). max_pages: предохранитель.
     Сеть изолирована здесь; в тестах передаётся client с httpx.MockTransport.
     """
-    owns_client = client is None
-    client = client or new_client()
-    try:
+    with managed_client(client) as client:
         index = 1
         while True:
             resp = client.get(
@@ -121,6 +119,3 @@ def iter_documents(
             if max_pages is not None and index >= max_pages:
                 return
             index += 1
-    finally:
-        if owns_client:
-            client.close()

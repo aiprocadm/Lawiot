@@ -2,6 +2,7 @@ import hashlib
 import logging
 from dataclasses import dataclass
 
+import httpx
 from django.db import transaction
 from django.utils import timezone
 
@@ -47,7 +48,13 @@ def compute_text_hash(content: bytes, content_type: str = "text/html") -> str:
     return text_digest(html_to_text(content, content_type))
 
 
-def store_raw_source(target_key, content, content_type="", source_url="", text_hash=None):
+def store_raw_source(
+    target_key: str,
+    content: bytes,
+    content_type: str = "",
+    source_url: str = "",
+    text_hash: str | None = None,
+) -> RawSource:
     return RawSource.objects.create(
         target_key=target_key,
         content=content,
@@ -64,7 +71,9 @@ def text_changed(target_key, text_hash) -> bool:
     return latest is None or latest.text_hash != text_hash
 
 
-def create_draft_from_parsed(document, parsed, *, raw_source=None, redaction_date=None):
+def create_draft_from_parsed(
+    document: Document, parsed, *, raw_source: RawSource | None = None, redaction_date=None
+) -> Redaction:
     """Создать/обновить ЧЕРНОВИК редакции из разобранного содержимого.
     Идемпотентно по (document, redaction_date). Опубликованную редакцию НИКОГДА не трогает."""
     redaction_date = redaction_date or timezone.now().date()
@@ -116,11 +125,28 @@ def create_draft_from_parsed(document, parsed, *, raw_source=None, redaction_dat
     return redaction
 
 
-def _finish(job, log_lines):
+def _finish(job: IngestionJob, log_lines: list[str]) -> IngestionJob:
     job.log = "\n".join(log_lines)
     job.finished_at = timezone.now()
     job.save()
     return job
+
+
+def _safe_extract_links(redaction, log_lines, *, fail_msg: str, log_label: str) -> int | None:
+    """Извлечь связи редакции, не роняя приём (вторичная операция).
+
+    Связи переизвлекаемы отдельной командой, поэтому любая ошибка здесь
+    логируется (строка job-лога + warning) и проглатывается. Возвращает число
+    предложенных связей или None при сбое. Централизует политику «связи не
+    валят приём» вместо повторения try/except на каждой площадке вызова."""
+    try:
+        return extract_links_for_redaction(redaction)
+    except Exception as exc:  # вторичная операция — не валит приём
+        log_lines.append(f"{fail_msg}: {exc}")
+        logger.warning(
+            "ingest_target: %s упало для редакции #%s", log_label, redaction.pk, exc_info=True
+        )
+        return None
 
 
 def _article_count(redaction):
@@ -146,7 +172,7 @@ def _is_safe_to_publish(new_redaction, current_redaction):
     return new_count >= AUTOPUBLISH_MIN_RATIO * current_count
 
 
-def ingest_target(target, *, client=None):
+def ingest_target(target: IngestionTarget, *, client: httpx.Client | None = None) -> IngestionJob:
     """Конвейер по одной цели: скачать → сохранить сырьё → обнаружить изменение →
     разобрать → создать черновик → (если auto_publish и безопасно) опубликовать.
     Сбой изолирован (FAILED-job), сырьё сохраняется (карантин)."""
@@ -197,16 +223,14 @@ def ingest_target(target, *, client=None):
         job.produced_redaction = redaction
         job.status = IngestionJob.Status.SUCCESS
         log_lines.append(f"Создан черновик редакции #{redaction.pk}.")
-        try:
-            n_links = extract_links_for_redaction(redaction)
+        n_links = _safe_extract_links(
+            redaction,
+            log_lines,
+            fail_msg="Извлечение связей не удалось",
+            log_label="извлечение связей",
+        )
+        if n_links is not None:
             log_lines.append(f"Предложено связей: {n_links}.")
-        except Exception as link_exc:  # извлечение связей вторично — не валит приём
-            log_lines.append(f"Извлечение связей не удалось: {link_exc}")
-            logger.warning(
-                "ingest_target: извлечение связей упало для редакции #%s",
-                redaction.pk,
-                exc_info=True,
-            )
         # авто-публикация (§17): только при флаге, извлечённой дате и пройденном гейте
         if target.document.auto_publish:
             if parsed.detected_redaction_date is None:
@@ -219,15 +243,13 @@ def ingest_target(target, *, client=None):
             else:
                 redaction.publish()
                 log_lines.append(f"Авто-опубликована редакция #{redaction.pk}.")
-                try:
-                    extract_links_for_redaction(redaction)  # после публикации: самоссылки
-                except Exception as link_exc:
-                    log_lines.append(f"Переизвлечение связей не удалось: {link_exc}")
-                    logger.warning(
-                        "ingest_target: переизвлечение связей упало для редакции #%s",
-                        redaction.pk,
-                        exc_info=True,
-                    )
+                # после публикации переизвлекаем — теперь резолвятся самоссылки акта
+                _safe_extract_links(
+                    redaction,
+                    log_lines,
+                    fail_msg="Переизвлечение связей не удалось",
+                    log_label="переизвлечение связей",
+                )
     except Exception as exc:  # изоляция: сбой одной цели не валит пакет
         job.status = IngestionJob.Status.FAILED
         job.error = f"{type(exc).__name__}: {exc}"
@@ -241,8 +263,13 @@ def ingest_target(target, *, client=None):
 
 
 def import_manual(
-    document, *, content, content_type="text/plain", source_url="", redaction_date=None
-):
+    document: Document,
+    *,
+    content,
+    content_type: str = "text/plain",
+    source_url: str = "",
+    redaction_date=None,
+) -> Redaction:
     """Запасной путь: куратор подаёт байты/текст напрямую → черновик редакции + предложенные связи."""
     raw = store_raw_source(f"manual:{document.slug}", content, content_type, source_url)
     parsed = parse_document(content, content_type, document.doc_type)
@@ -260,7 +287,7 @@ def import_manual(
     return redaction
 
 
-def reparse_redaction(redaction):
+def reparse_redaction(redaction: Redaction) -> Redaction:
     """Переразобрать ЧЕРНОВИК из сохранённого RawSource (без повторного скачивания).
     Защита (#1281): если новый разбор даёт 0 статей, а у черновика статьи есть —
     отменяем, чтобы смена формата источника молча не стёрла данные куратора."""
