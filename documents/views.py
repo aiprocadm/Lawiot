@@ -229,8 +229,12 @@ def redaction_diff_explain(request, slug, from_pk):
     document = get_object_or_404(Document, slug=slug)
     older, current = _diff_pair_or_404(document, from_pk)
 
-    older_by_num = {a.number: a for a in older.articles.all()}
-    newer_by_num = {a.number: a for a in current.articles.all()}
+    # Выбираем статьи редакций по одному разу (раньше каждый queryset
+    # вычислялся дважды — для словарей и повторно внутри diff_articles).
+    older_articles = list(older.articles.all())
+    current_articles = list(current.articles.all())
+    older_by_num = {a.number: a for a in older_articles}
+    newer_by_num = {a.number: a for a in current_articles}
     changes = [
         {
             "number": d.number,
@@ -238,7 +242,7 @@ def redaction_diff_explain(request, slug, from_pk):
             "old_text": getattr(older_by_num.get(d.number), "text", "") or "",
             "new_text": getattr(newer_by_num.get(d.number), "text", "") or "",
         }
-        for d in diff_articles(list(older.articles.all()), list(current.articles.all()))
+        for d in diff_articles(older_articles, current_articles)
         if d.status != "same"
     ]
     explanation = explain_diff(changes)

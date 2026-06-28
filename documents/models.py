@@ -379,7 +379,14 @@ class PendingAct(models.Model):
     @property
     def is_resolved(self) -> bool:
         """True, когда акт уже заведён: есть Document с теми же (official_number,
-        doc_type) и опубликованной текущей редакцией."""
+        doc_type) и опубликованной текущей редакцией.
+
+        Пустой official_number нельзя сопоставить по номеру: иначе ЛЮБОЙ
+        ожидаемый акт без номера «разрешался» первым же опубликованным
+        документом без номера того же типа и молча удалялся в seed_corpus.
+        """
+        if not self.official_number:
+            return False
         return Document.objects.filter(
             official_number=self.official_number,
             doc_type=self.doc_type,

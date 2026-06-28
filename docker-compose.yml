@@ -1,3 +1,9 @@
+# Имя compose-проекта закреплено явно. По умолчанию Compose берёт его из имени
+# папки, поэтому каждый git-worktree получал СВОЙ проект и пытался поднять второй
+# контейнер с фиксированным `container_name: lawiot-db` → конфликт имён. С пиннингом
+# `name: lawiot` все worktree сходятся на одном общем dev-контейнере и томе.
+name: lawiot
+
 services:
   db:
     # pgvector/pgvector:pg16 = PostgreSQL 16 + расширение vector (AI-срез 4,
@@ -14,7 +20,10 @@ services:
     volumes:
       - lawiot_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lawiot"]
+      # -d lawiot: pg_isready отдаёт «готов», как только сервер принимает
+      # подключения, ещё до создания самой БД при первом запуске. Проверяем
+      # доступность конкретной базы, иначе migrate может стартовать слишком рано.
+      test: ["CMD-SHELL", "pg_isready -U lawiot -d lawiot"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -33,6 +42,7 @@ services:
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,web}
       SWEEP_CRON: ${SWEEP_CRON:-0 3 * * *}
+      DISCOVERY_CRON: ${DISCOVERY_CRON:-0 4 * * *}
     ports:
       - "8000:8000"
     depends_on:
@@ -52,6 +62,7 @@ services:
     container_name: lawiot-qcluster
     command: >
       sh -c "python manage.py ensure_sweep_schedule &&
+             python manage.py ensure_discovery_schedule &&
              python manage.py qcluster"
     environment:
       DATABASE_URL: postgres://lawiot:lawiot@db:5432/lawiot
@@ -59,6 +70,7 @@ services:
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,web}
       SWEEP_CRON: ${SWEEP_CRON:-0 3 * * *}
+      DISCOVERY_CRON: ${DISCOVERY_CRON:-0 4 * * *}
     depends_on:
       db:
         condition: service_healthy

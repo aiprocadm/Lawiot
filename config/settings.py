@@ -155,6 +155,15 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 if not DEBUG:
+    # За обратным прокси (SECURE_PROXY_SSL_HEADER ниже) Django 4+ требует
+    # CSRF_TRUSTED_ORIGINS со схемой, иначе POST-формы в проде падают с 403.
+    # По умолчанию выводим из ALLOWED_HOSTS (кроме localhost); можно переопределить.
+    CSRF_TRUSTED_ORIGINS = env.list(
+        "CSRF_TRUSTED_ORIGINS",
+        default=[
+            f"https://{h}" for h in ALLOWED_HOSTS if h not in ("localhost", "127.0.0.1")
+        ],
+    )
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
