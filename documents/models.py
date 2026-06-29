@@ -10,6 +10,24 @@ from pgvector.django import HnswIndex, VectorField
 # Размерность эмбеддингов = intfloat/multilingual-e5-small (см. search.embeddings).
 EMBEDDING_DIM = 384
 
+_ANCHOR_PREFIX = {
+    "section": "razdel",
+    "chapter": "glava",
+    "article": "st",
+    "point": "p",
+    "appendix": "pril",
+}
+
+
+def compute_anchor(kind: str, number: str) -> str:
+    """Якорь узла: «<префикс вида>-<номер с дефисами вместо точек>».
+
+    Прямой доступ по kind: новый вид без префикса упадёт KeyError явно, а не
+    получит молча якорь пункта (раньше дефолт был "p").
+    """
+    prefix = _ANCHOR_PREFIX[kind]
+    return f"{prefix}-{slugify(number.replace('.', '-'))}"
+
 
 class Document(models.Model):
     class DocType(models.TextChoices):
@@ -214,14 +232,6 @@ class Article(models.Model):
     # генерируется вне request-пути. См. search.embeddings / search.services.
     embedding = VectorField(dimensions=EMBEDDING_DIM, null=True, blank=True, editable=False)
 
-    _ANCHOR_PREFIX = {
-        "section": "razdel",
-        "chapter": "glava",
-        "article": "st",
-        "point": "p",
-        "appendix": "pril",
-    }
-
     class Meta:
         ordering = ["order"]
         indexes = [
@@ -242,14 +252,20 @@ class Article(models.Model):
                 condition=~Q(parent=F("id")),
                 name="article_not_self_parent",
             ),
+            # Якорь статьи уникален в пределах редакции — деталь/разъяснение
+            # ищут статью по (redaction, anchor); дубли давали MultipleObjectsReturned
+            # → 500. Частичный (anchor != ''): у структурных единиц без номера якорь
+            # пуст, таких может быть много.
+            models.UniqueConstraint(
+                fields=["redaction", "anchor"],
+                condition=~Q(anchor=""),
+                name="uniq_redaction_anchor",
+            ),
         ]
 
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:
-            # Прямой доступ: новый вид без префикса упадёт KeyError явно,
-            # а не получит молча якорь пункта (раньше дефолт был "p").
-            prefix = self._ANCHOR_PREFIX[self.kind]
-            self.anchor = f"{prefix}-{slugify(self.number.replace('.', '-'))}"
+            self.anchor = compute_anchor(self.kind, self.number)
         super().save(*args, **kwargs)
 
     def clean(self):
