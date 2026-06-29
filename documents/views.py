@@ -144,7 +144,15 @@ def article_explain(request, slug, anchor):
 
     document = get_object_or_404(Document, slug=slug)
     redaction = _current_published_or_404(document)
-    article = get_object_or_404(Article, redaction=redaction, anchor=anchor)
+    # Уникальность (redaction, anchor) теперь гарантирует БД-ограничение
+    # uniq_redaction_anchor (миграция 0018). Раньше дубли (дефект парсера со
+    # «сдвинутым» номером) роняли get_object_or_404 в MultipleObjectsReturned →
+    # HTTP 500; .first() остаётся защитой на случай отката ограничения.
+    article = (
+        Article.objects.filter(redaction=redaction, anchor=anchor).order_by("order").first()
+    )
+    if article is None:
+        raise Http404("Статья не найдена")
     explanation = explain_article(article.text)
     return render(
         request,

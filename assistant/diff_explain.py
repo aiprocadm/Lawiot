@@ -13,6 +13,7 @@ API — режим `unavailable` (сам diff остаётся виден чит
 import logging
 from dataclasses import dataclass
 
+from assistant.prompts import cap_text
 from assistant.services import (
     EFFORT,
     MAX_TOKENS,
@@ -59,9 +60,9 @@ def build_diff_prompt(changes):
         status_ru = _STATUS_RU.get(ch["status"], ch["status"])
         block = [f"Статья {ch['number']} — {status_ru}."]
         if ch.get("old_text"):
-            block.append(f"Было:\n{ch['old_text']}")
+            block.append(f"Было:\n{cap_text(ch['old_text'])}")
         if ch.get("new_text"):
-            block.append(f"Стало:\n{ch['new_text']}")
+            block.append(f"Стало:\n{cap_text(ch['new_text'])}")
         blocks.append("\n".join(block))
     body = "\n\n".join(blocks)
     return (

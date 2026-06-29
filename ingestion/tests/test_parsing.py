@@ -63,6 +63,21 @@ def test_parse_articles_handles_decimal_numbers():
     assert arts[0].title == "Дистанционная работа"
 
 
+def test_parse_articles_handles_hyphenated_numbers():
+    # ГК РФ (личный фонд) и ТК РФ (заёмный труд) реально нумеруют статьи через
+    # дефис: «Статья 123.20-1», «Статья 341.1-1». Без суффикса в ARTICLE_RE все
+    # они схлопывались в один номер «123.20»/«341.1» (дефект: дубли якорей → 500).
+    text = (
+        "Статья 123.20. Личный фонд\nбаза\n"
+        "Статья 123.20-1. Основные положения о личном фонде\nтекст один\n"
+        "Статья 123.20-2. Условия управления\nтекст два"
+    )
+    arts = parse_articles(text)
+    assert [a.number for a in arts] == ["123.20", "123.20-1", "123.20-2"]
+    assert arts[1].title == "Основные положения о личном фонде"
+    assert arts[1].text == "текст один"
+
+
 def test_parse_document_on_html_fixture():
     content = (FIXTURES / "sample_tk.html").read_bytes()
     parsed = parse_document(content, "text/html")
@@ -184,6 +199,62 @@ def test_parse_structure_roman_numeral_chapters():
     assert all(a.parent_order is not None for a in articles)
     assert articles[0].parent_order == chapters[0].order
     assert articles[1].parent_order == chapters[1].order
+
+
+def test_parse_structure_roman_chapter_with_dot_suffix():
+    # ЗК РФ: «ГЛАВА V.1», «ГЛАВА I.1» — римская глава с дробным суффиксом.
+    # CHAPTER_RE раньше захватывал только саму римскую цифру (ветка без «.N»),
+    # поэтому V.1..V.7 схлопывались в номер «V» → один якорь glava-v на 8 глав.
+    text = (
+        "ГЛАВА V. ВОЗНИКНОВЕНИЕ ПРАВ НА ЗЕМЛЮ\n"
+        "Статья 25. Основания\nтекст\n"
+        "ГЛАВА V.1. ПРЕДОСТАВЛЕНИЕ ЗЕМЕЛЬНЫХ УЧАСТКОВ\n"
+        "Статья 39.1. Случаи\nтекст\n"
+        "Глава V.7. УСТАНОВЛЕНИЕ ПУБЛИЧНОГО СЕРВИТУТА\n"
+        "Статья 39.37. Цели\nтекст"
+    )
+    nodes = parse_structure(text)
+    chapters = [n for n in nodes if n.kind == "chapter"]
+    assert [c.number for c in chapters] == ["V", "V.1", "V.7"]
+    # суффикс уходит в номер, а не в заголовок
+    assert chapters[1].title == "ПРЕДОСТАВЛЕНИЕ ЗЕМЕЛЬНЫХ УЧАСТКОВ"
+
+
+def test_parse_structure_roman_section_with_dot_suffix():
+    # ЖК РФ: «Раздел III.1», «Раздел III.2» — римский раздел с суффиксом.
+    # SECTION_RE имел тот же дефект, что и CHAPTER_RE: III.1/III.2 → «III».
+    text = (
+        "Раздел III. ПЕРЕУСТРОЙСТВО\n"
+        "Статья 25. Виды\nтекст\n"
+        "Раздел III.1. ОБЩЕЕ ИМУЩЕСТВО\n"
+        "Статья 36. Право собственности\nтекст\n"
+        "Раздел III.2. ЛИЦЕНЗИРОВАНИЕ\n"
+        "Статья 192. Лицензия\nтекст"
+    )
+    nodes = parse_structure(text)
+    sections = [n for n in nodes if n.kind == "section"]
+    assert [s.number for s in sections] == ["III", "III.1", "III.2"]
+
+
+def test_parse_structure_ignores_lowercase_section_reference_in_prose():
+    # ТК РФ: статья 423 цитирует «…раздел IV Указа Президиума…» — строчная
+    # «раздел» в прозе на отдельной строке. Из-за re.IGNORECASE SECTION_RE ловил
+    # её как фантомный раздел razdel-iv (дубль настоящего раздела IV), который
+    # перехватывал хвостовые статьи 423/424. Заголовки всегда с прописной.
+    text = (
+        "Раздел IV. РАБОЧЕЕ ВРЕМЯ\n"
+        "Статья 91. Понятие рабочего времени\nтекст\n"
+        "Статья 423. Применение законов\n"
+        "раздел IV Указа Президиума Верховного Совета РСФСР признан недействующим\n"
+        "Статья 424. Введение в действие\nтекст"
+    )
+    nodes = parse_structure(text)
+    sections = [n for n in nodes if n.kind == "section"]
+    assert [s.number for s in sections] == ["IV"]  # ровно один — без фантома
+    arts = {n.number: n for n in nodes if n.kind == "article"}
+    # хвостовые статьи привязаны к настоящему разделу IV, не осиротели
+    assert arts["424"].parent_order == sections[0].order
+    assert "признан недействующим" in arts["423"].text
 
 
 def test_detect_redaction_date_picks_max_citation_date():

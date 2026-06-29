@@ -37,6 +37,11 @@ def test_explain_unknown_anchor_404(auth_client, published):
     assert resp.status_code == 404
 
 
+# Прежний тест «дубли якорей не дают 500» удалён: уникальность (redaction, anchor)
+# теперь обеспечивает БД-ограничение uniq_redaction_anchor (миграция 0018), поэтому
+# создать дубль для сценария больше нельзя — он структурно невозможен.
+
+
 @pytest.mark.django_db
 def test_reader_shows_explain_button(auth_client, published):
     resp = auth_client.get(reverse("document_detail", args=[published.slug]))

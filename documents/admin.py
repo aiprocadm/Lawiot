@@ -160,6 +160,7 @@ def bind_to_ips(modeladmin, request, queryset):
         nd = (act.ips_nd or "").strip()
         if not nd:
             continue
+        # http намеренно: pravo.gov.ru не обслуживает https (см. ips_resolve.IPS_BASE).
         source_url = f"http://pravo.gov.ru/proxy/ips/?doc_itself=&nd={nd}&print=1"
         doc, created = Document.objects.get_or_create(
             slug=act.slug,

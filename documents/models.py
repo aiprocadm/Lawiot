@@ -10,6 +10,24 @@ from pgvector.django import HnswIndex, VectorField
 # Размерность эмбеддингов = intfloat/multilingual-e5-small (см. search.embeddings).
 EMBEDDING_DIM = 384
 
+_ANCHOR_PREFIX = {
+    "section": "razdel",
+    "chapter": "glava",
+    "article": "st",
+    "point": "p",
+    "appendix": "pril",
+}
+
+
+def compute_anchor(kind: str, number: str) -> str:
+    """Якорь узла: «<префикс вида>-<номер с дефисами вместо точек>».
+
+    Прямой доступ по kind: новый вид без префикса упадёт KeyError явно, а не
+    получит молча якорь пункта (раньше дефолт был "p").
+    """
+    prefix = _ANCHOR_PREFIX[kind]
+    return f"{prefix}-{slugify(number.replace('.', '-'))}"
+
 
 class Document(models.Model):
     class DocType(models.TextChoices):
@@ -214,14 +232,6 @@ class Article(models.Model):
     # генерируется вне request-пути. См. search.embeddings / search.services.
     embedding = VectorField(dimensions=EMBEDDING_DIM, null=True, blank=True, editable=False)
 
-    _ANCHOR_PREFIX = {
-        "section": "razdel",
-        "chapter": "glava",
-        "article": "st",
-        "point": "p",
-        "appendix": "pril",
-    }
-
     class Meta:
         ordering = ["order"]
         indexes = [
@@ -242,15 +252,40 @@ class Article(models.Model):
                 condition=~Q(parent=F("id")),
                 name="article_not_self_parent",
             ),
+            # Якорь статьи уникален в пределах редакции — деталь/разъяснение
+            # ищут статью по (redaction, anchor); дубли давали MultipleObjectsReturned
+            # → 500. Частичный (anchor != ''): у структурных единиц без номера якорь
+            # пуст, таких может быть много.
+            models.UniqueConstraint(
+                fields=["redaction", "anchor"],
+                condition=~Q(anchor=""),
+                name="uniq_redaction_anchor",
+            ),
         ]
 
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:
-            # Прямой доступ: новый вид без префикса упадёт KeyError явно,
-            # а не получит молча якорь пункта (раньше дефолт был "p").
-            prefix = self._ANCHOR_PREFIX[self.kind]
-            self.anchor = f"{prefix}-{slugify(self.number.replace('.', '-'))}"
+            self.anchor = self._unique_anchor(compute_anchor(self.kind, self.number))
         super().save(*args, **kwargs)
+
+    def _unique_anchor(self, base: str) -> str:
+        """Якорь, уникальный в пределах редакции: при коллизии добавляет суффикс
+        -2, -3… Нужен для настоящих дублей номера — БК РФ держит ДВЕ «Статья 242.1»
+        (утратившую силу и действующую). Без дедупа второй create() ронял бы приём
+        IntegrityError по uniq_redaction_anchor (статьи пишутся по одной). Чистую
+        структуру даёт парсер (римские главы V.1…); это страховочный слой для
+        неустранимых дублей. Узел без редакции — базовый якорь (дедуп при save с FK)."""
+        if self.redaction_id is None:
+            return base
+        candidate, n = base, 1
+        while (
+            Article.objects.filter(redaction_id=self.redaction_id, anchor=candidate)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            n += 1
+            candidate = f"{base}-{n}"
+        return candidate
 
     def clean(self):
         super().clean()
