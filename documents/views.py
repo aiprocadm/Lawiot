@@ -144,10 +144,10 @@ def article_explain(request, slug, anchor):
 
     document = get_object_or_404(Document, slug=slug)
     redaction = _current_published_or_404(document)
-    # Корпус может содержать дубли (redaction, anchor) — дефект парсинга: статьи
-    # со «сдвинутым» номером (напр. 341.1×5 вместо 341.1–341.5) делят один якорь.
-    # get_object_or_404 на таком якоре падал MultipleObjectsReturned → HTTP 500.
-    # Берём каноничную статью (первую по order — это и есть искомый номер).
+    # Уникальность (redaction, anchor) теперь гарантирует БД-ограничение
+    # uniq_redaction_anchor (миграция 0018). Раньше дубли (дефект парсера со
+    # «сдвинутым» номером) роняли get_object_or_404 в MultipleObjectsReturned →
+    # HTTP 500; .first() остаётся защитой на случай отката ограничения.
     article = (
         Article.objects.filter(redaction=redaction, anchor=anchor).order_by("order").first()
     )

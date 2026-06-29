@@ -37,20 +37,9 @@ def test_explain_unknown_anchor_404(auth_client, published):
     assert resp.status_code == 404
 
 
-@pytest.mark.django_db
-def test_explain_duplicate_anchor_returns_canonical_not_500(auth_client, settings):
-    """Дубли (redaction, anchor) в корпусе (дефект парсинга: статьи со «сдвинутым»
-    номером делят якорь) не должны рушить страницу 500-кой MultipleObjectsReturned —
-    берётся каноничная статья (первая по order)."""
-    settings.ANTHROPIC_API_KEY = ""  # режим unavailable, без сети
-    doc = make_document(slug="dup", title="Акт с дублями", official_number="1")
-    red = make_redaction(doc, full_text="")
-    make_article(red, number="341.1", title="Общие положения", text="канон", order=1)
-    make_article(red, number="341.1", title="-1. Иное", text="дубль", order=2)
-    red.publish()
-    # оба сгенерировали один якорь st-341-1
-    resp = auth_client.get(reverse("article_explain", args=["dup", "st-341-1"]))
-    assert resp.status_code == 200
+# Прежний тест «дубли якорей не дают 500» удалён: уникальность (redaction, anchor)
+# теперь обеспечивает БД-ограничение uniq_redaction_anchor (миграция 0018), поэтому
+# создать дубль для сценария больше нельзя — он структурно невозможен.
 
 
 @pytest.mark.django_db
