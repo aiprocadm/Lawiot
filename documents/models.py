@@ -265,8 +265,27 @@ class Article(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.anchor and self.number:
-            self.anchor = compute_anchor(self.kind, self.number)
+            self.anchor = self._unique_anchor(compute_anchor(self.kind, self.number))
         super().save(*args, **kwargs)
+
+    def _unique_anchor(self, base: str) -> str:
+        """Якорь, уникальный в пределах редакции: при коллизии добавляет суффикс
+        -2, -3… Нужен для настоящих дублей номера — БК РФ держит ДВЕ «Статья 242.1»
+        (утратившую силу и действующую). Без дедупа второй create() ронял бы приём
+        IntegrityError по uniq_redaction_anchor (статьи пишутся по одной). Чистую
+        структуру даёт парсер (римские главы V.1…); это страховочный слой для
+        неустранимых дублей. Узел без редакции — базовый якорь (дедуп при save с FK)."""
+        if self.redaction_id is None:
+            return base
+        candidate, n = base, 1
+        while (
+            Article.objects.filter(redaction_id=self.redaction_id, anchor=candidate)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            n += 1
+            candidate = f"{base}-{n}"
+        return candidate
 
     def clean(self):
         super().clean()

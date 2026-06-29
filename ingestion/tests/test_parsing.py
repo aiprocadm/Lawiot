@@ -201,6 +201,62 @@ def test_parse_structure_roman_numeral_chapters():
     assert articles[1].parent_order == chapters[1].order
 
 
+def test_parse_structure_roman_chapter_with_dot_suffix():
+    # ЗК РФ: «ГЛАВА V.1», «ГЛАВА I.1» — римская глава с дробным суффиксом.
+    # CHAPTER_RE раньше захватывал только саму римскую цифру (ветка без «.N»),
+    # поэтому V.1..V.7 схлопывались в номер «V» → один якорь glava-v на 8 глав.
+    text = (
+        "ГЛАВА V. ВОЗНИКНОВЕНИЕ ПРАВ НА ЗЕМЛЮ\n"
+        "Статья 25. Основания\nтекст\n"
+        "ГЛАВА V.1. ПРЕДОСТАВЛЕНИЕ ЗЕМЕЛЬНЫХ УЧАСТКОВ\n"
+        "Статья 39.1. Случаи\nтекст\n"
+        "Глава V.7. УСТАНОВЛЕНИЕ ПУБЛИЧНОГО СЕРВИТУТА\n"
+        "Статья 39.37. Цели\nтекст"
+    )
+    nodes = parse_structure(text)
+    chapters = [n for n in nodes if n.kind == "chapter"]
+    assert [c.number for c in chapters] == ["V", "V.1", "V.7"]
+    # суффикс уходит в номер, а не в заголовок
+    assert chapters[1].title == "ПРЕДОСТАВЛЕНИЕ ЗЕМЕЛЬНЫХ УЧАСТКОВ"
+
+
+def test_parse_structure_roman_section_with_dot_suffix():
+    # ЖК РФ: «Раздел III.1», «Раздел III.2» — римский раздел с суффиксом.
+    # SECTION_RE имел тот же дефект, что и CHAPTER_RE: III.1/III.2 → «III».
+    text = (
+        "Раздел III. ПЕРЕУСТРОЙСТВО\n"
+        "Статья 25. Виды\nтекст\n"
+        "Раздел III.1. ОБЩЕЕ ИМУЩЕСТВО\n"
+        "Статья 36. Право собственности\nтекст\n"
+        "Раздел III.2. ЛИЦЕНЗИРОВАНИЕ\n"
+        "Статья 192. Лицензия\nтекст"
+    )
+    nodes = parse_structure(text)
+    sections = [n for n in nodes if n.kind == "section"]
+    assert [s.number for s in sections] == ["III", "III.1", "III.2"]
+
+
+def test_parse_structure_ignores_lowercase_section_reference_in_prose():
+    # ТК РФ: статья 423 цитирует «…раздел IV Указа Президиума…» — строчная
+    # «раздел» в прозе на отдельной строке. Из-за re.IGNORECASE SECTION_RE ловил
+    # её как фантомный раздел razdel-iv (дубль настоящего раздела IV), который
+    # перехватывал хвостовые статьи 423/424. Заголовки всегда с прописной.
+    text = (
+        "Раздел IV. РАБОЧЕЕ ВРЕМЯ\n"
+        "Статья 91. Понятие рабочего времени\nтекст\n"
+        "Статья 423. Применение законов\n"
+        "раздел IV Указа Президиума Верховного Совета РСФСР признан недействующим\n"
+        "Статья 424. Введение в действие\nтекст"
+    )
+    nodes = parse_structure(text)
+    sections = [n for n in nodes if n.kind == "section"]
+    assert [s.number for s in sections] == ["IV"]  # ровно один — без фантома
+    arts = {n.number: n for n in nodes if n.kind == "article"}
+    # хвостовые статьи привязаны к настоящему разделу IV, не осиротели
+    assert arts["424"].parent_order == sections[0].order
+    assert "признан недействующим" in arts["423"].text
+
+
 def test_detect_redaction_date_picks_max_citation_date():
     text = (
         "Одобрен 26 декабря 2001 года "
