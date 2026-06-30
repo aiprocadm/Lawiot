@@ -428,3 +428,28 @@ class PendingAct(models.Model):
             redactions__is_current=True,
             redactions__review_status=Redaction.ReviewStatus.PUBLISHED,
         ).exists()
+
+
+class SearchVocab(models.Model):
+    """Словарь словоформ корпуса для исправления опечаток (did-you-mean).
+
+    Наполняется командой build_search_vocab из текста статей. Триграммный
+    GIN-индекс (pg_trgm) делает поиск ближайшего по написанию слова дешёвым.
+    Хранятся реальные словоформы (не основы search_vector) — чтобы подсказывать
+    «увольнение», а не основу «увольнен».
+    """
+
+    word = models.CharField(max_length=64, unique=True)
+    frequency = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        indexes = [
+            GinIndex(
+                fields=["word"],
+                name="searchvocab_word_trgm",
+                opclasses=["gin_trgm_ops"],
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.word} ({self.frequency})"
