@@ -4,7 +4,7 @@ from django.core.management import call_command
 
 from documents.models import SearchVocab
 from documents.tests.factories import make_article, make_document, make_redaction
-from search.suggest import tokenize
+from search.suggest import suggest_query, tokenize
 
 
 @pytest.mark.django_db
@@ -47,3 +47,33 @@ def test_build_search_vocab_counts_filters_and_normalizes():
     assert words.get("елка") == 2  # ё→е нормализовано, посчитано как одно слово
     assert "по" not in words  # короче min-len=4
     assert "работника" not in words  # частота 1 < min-freq=2
+
+
+@pytest.mark.django_db
+def test_suggest_corrects_typo():
+    SearchVocab.objects.create(word="увольнение", frequency=10)
+    assert suggest_query("уволнение") == "увольнение"
+
+
+@pytest.mark.django_db
+def test_suggest_returns_none_when_all_known():
+    SearchVocab.objects.create(word="увольнение", frequency=10)
+    assert suggest_query("увольнение") is None
+
+
+@pytest.mark.django_db
+def test_suggest_returns_none_when_no_close_match():
+    SearchVocab.objects.create(word="увольнение", frequency=10)
+    assert suggest_query("ббббббб") is None
+
+
+@pytest.mark.django_db
+def test_suggest_fixes_only_unknown_token():
+    SearchVocab.objects.create(word="увольнение", frequency=10)
+    SearchVocab.objects.create(word="работника", frequency=8)
+    assert suggest_query("уволнение работника") == "увольнение работника"
+
+
+@pytest.mark.django_db
+def test_suggest_empty_vocab_returns_none():
+    assert suggest_query("уволнение") is None
