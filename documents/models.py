@@ -439,10 +439,11 @@ class SearchVocab(models.Model):
     «увольнение», а не основу «увольнен».
     """
 
-    word = models.CharField(max_length=64, unique=True)
+    word = models.CharField(max_length=128, unique=True)
     frequency = models.PositiveIntegerField(default=1)
 
     class Meta:
+        ordering = ["word"]
         indexes = [
             GinIndex(
                 fields=["word"],
