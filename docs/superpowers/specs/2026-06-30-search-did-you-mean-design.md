@@ -50,11 +50,12 @@
 
 ```python
 class SearchVocab(models.Model):
-    word = models.CharField(max_length=64, unique=True)   # словоформа, lowercase, ё→е
+    word = models.CharField(max_length=128, unique=True)   # словоформа, lowercase, ё→е
     frequency = models.PositiveIntegerField(default=1)     # частота в корпусе
 
     class Meta:
-        indexes = [GinIndex(OpClass("word", name="gin_trgm_ops"), name="searchvocab_word_trgm")]
+        ordering = ["word"]
+        indexes = [GinIndex(fields=["word"], name="searchvocab_word_trgm", opclasses=["gin_trgm_ops"])]
 ```
 
 - `word` нормализован так же, как поисковые токены: lowercase + ё→е.
