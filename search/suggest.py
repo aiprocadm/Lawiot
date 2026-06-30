@@ -10,7 +10,7 @@ import re
 
 from django.contrib.postgres.search import TrigramSimilarity
 
-logger = logging.getLogger("search")
+logger = logging.getLogger(__name__)
 
 # Дефолтный порог сходства pg_trgm: ниже него кандидат считается несвязанным.
 SIMILARITY_THRESHOLD = 0.3

@@ -77,3 +77,10 @@ def test_suggest_fixes_only_unknown_token():
 @pytest.mark.django_db
 def test_suggest_empty_vocab_returns_none():
     assert suggest_query("уволнение") is None
+
+
+@pytest.mark.django_db
+def test_suggest_empty_query_returns_none():
+    SearchVocab.objects.create(word="увольнение", frequency=10)
+    assert suggest_query("") is None
+    assert suggest_query("   ") is None
