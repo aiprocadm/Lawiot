@@ -1,7 +1,10 @@
 import pytest
 from django.contrib.postgres.search import TrigramSimilarity
+from django.core.management import call_command
 
 from documents.models import SearchVocab
+from documents.tests.factories import make_article, make_document, make_redaction
+from search.suggest import tokenize
 
 
 @pytest.mark.django_db
@@ -14,3 +17,33 @@ def test_searchvocab_trigram_similarity_query_works():
         .first()
     )
     assert nearest.word == "увольнение"
+
+
+def test_tokenize_normalizes_and_splits():
+    assert tokenize("Увольнение по СОБСТВЕННОМУ; ёлка") == [
+        "увольнение",
+        "по",
+        "собственному",
+        "елка",
+    ]
+
+
+@pytest.mark.django_db
+def test_build_search_vocab_counts_filters_and_normalizes():
+    doc = make_document(slug="tk", title="ТК", official_number="197-ФЗ")
+    red = make_redaction(doc, full_text="")
+    make_article(
+        red,
+        number="81",
+        title="Расторжение",
+        text="увольнение работника. увольнение по статье. ёлка ёлка",
+    )
+    red.publish()
+
+    call_command("build_search_vocab", "--min-len", "4", "--min-freq", "2")
+
+    words = {v.word: v.frequency for v in SearchVocab.objects.all()}
+    assert words.get("увольнение") == 2  # частотное слово сохранено
+    assert words.get("елка") == 2  # ё→е нормализовано, посчитано как одно слово
+    assert "по" not in words  # короче min-len=4
+    assert "работника" not in words  # частота 1 < min-freq=2
