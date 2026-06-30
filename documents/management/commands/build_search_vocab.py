@@ -13,6 +13,7 @@ from documents.models import Article, Redaction, SearchVocab
 from search.suggest import tokenize
 
 _BATCH = 1000
+_READ_CHUNK = 200
 
 
 class Command(BaseCommand):
@@ -34,8 +35,9 @@ class Command(BaseCommand):
                 redaction__is_current=True,
                 redaction__review_status=Redaction.ReviewStatus.PUBLISHED,
             )
+            .order_by("pk")
             .values_list("text", flat=True)
-            .iterator(chunk_size=200)
+            .iterator(chunk_size=_READ_CHUNK)
         )
         articles = 0
         for text in texts:
