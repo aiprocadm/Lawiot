@@ -12,7 +12,14 @@
   <p>{{ r.snippet }}</p>
 </article>
 {% empty %}
+{% if suggestion %}
+<p>Ничего не найдено. Возможно, вы искали:
+  <a href="?{{ suggestion_qs }}"
+     hx-get="?{{ suggestion_qs }}"
+     hx-target="#search-results" hx-push-url="true">{{ suggestion }}</a>?</p>
+{% else %}
 <p>Ничего не найдено.</p>
+{% endif %}
 {% endfor %}
 
 {% if page_obj.has_other_pages %}

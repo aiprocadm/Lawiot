@@ -1,8 +1,9 @@
 import pytest
 from django.contrib.postgres.search import TrigramSimilarity
 from django.core.management import call_command
+from django.urls import reverse
 
-from documents.models import SearchVocab
+from documents.models import Document, SearchVocab
 from documents.tests.factories import make_article, make_document, make_redaction
 from search.suggest import suggest_query, tokenize
 
@@ -84,3 +85,62 @@ def test_suggest_empty_query_returns_none():
     SearchVocab.objects.create(word="увольнение", frequency=10)
     assert suggest_query("") is None
     assert suggest_query("   ") is None
+
+
+@pytest.mark.django_db
+def test_search_suggests_on_zero_results(auth_client):
+    doc = make_document(slug="tk", title="ТК", official_number="197-ФЗ")
+    red = make_redaction(doc, full_text="")
+    make_article(red, number="81", title="Расторжение", text="увольнение работника")
+    red.publish()
+    call_command("build_search_vocab", "--min-len", "4", "--min-freq", "1")
+
+    response = auth_client.get(reverse("search"), {"q": "уволнение"})
+    content = response.content.decode()
+    assert response.status_code == 200
+    assert "Возможно, вы искали" in content
+    assert "увольнение" in content
+
+
+@pytest.mark.django_db
+def test_search_no_suggestion_when_results_exist(auth_client):
+    doc = make_document(slug="tk", title="ТК", official_number="197-ФЗ")
+    red = make_redaction(doc, full_text="")
+    make_article(red, number="81", title="Расторжение", text="увольнение работника")
+    red.publish()
+    call_command("build_search_vocab", "--min-len", "4", "--min-freq", "1")
+
+    response = auth_client.get(reverse("search"), {"q": "увольнение"})
+    content = response.content.decode()
+    assert "Возможно, вы искали" not in content
+
+
+@pytest.mark.django_db
+def test_suggestion_link_keeps_filters(auth_client):
+    doc = make_document(
+        slug="tk", title="ТК", official_number="197-ФЗ", doc_type=Document.DocType.FEDERAL_LAW
+    )
+    red = make_redaction(doc, full_text="")
+    make_article(red, number="81", title="Расторжение", text="увольнение работника")
+    red.publish()
+    call_command("build_search_vocab", "--min-len", "4", "--min-freq", "1")
+
+    response = auth_client.get(
+        reverse("search"), {"q": "уволнение", "doc_type": "federal_law"}
+    )
+    content = response.content.decode()
+    assert "Возможно, вы искали" in content
+    assert "doc_type=federal_law" in content
+
+
+@pytest.mark.django_db
+def test_no_suggestion_when_corrected_query_still_empty(auth_client):
+    doc = make_document(slug="tk", title="ТК", official_number="197-ФЗ")
+    red = make_redaction(doc, full_text="")
+    make_article(red, number="81", title="Расторжение", text="увольнение работника")
+    red.publish()
+    call_command("build_search_vocab", "--min-len", "4", "--min-freq", "1")
+
+    response = auth_client.get(reverse("search"), {"q": "уволнение незнакомоеслово"})
+    content = response.content.decode()
+    assert "Возможно, вы искали" not in content
