@@ -188,6 +188,11 @@ class Redaction(models.Model):
             self.published_at = timezone.now()
             self.save(update_fields=["review_status", "is_current", "published_at"])
             self.update_search_index()
+            # Эмбеддинги — после коммита и вне request-пути (воркер qcluster).
+            # Ленивый импорт: documents ← search на уровне модулей не связываем.
+            from search.tasks import enqueue_embed_redaction
+
+            transaction.on_commit(lambda: enqueue_embed_redaction(self.pk))
 
     def update_search_index(self):
         Redaction.objects.filter(pk=self.pk).update(
